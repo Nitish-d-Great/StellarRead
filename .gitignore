@@ -1,0 +1,48 @@
+# Dependencies & build
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Environment & secrets — never commit real keys
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ed25519
+secrets/
+credentials.json
+*.secret
+
+# Logs & debug
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.local
+.idea/
+*.swp
+*.swo
+*~
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Optional tooling caches
+.cache/
+.turbo/
+.vercel/

@@ -1,0 +1,360 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getStellarX402Service } from '../services/stellarX402';
+import ArticleCard from '../components/ArticleCard';
+import BillingCounter from '../components/BillingCounter';
+import AgentLog from '../components/AgentLog';
+import Header from '../components/Header';
+import { demoArticles } from '../data/articles';
+import './NewsFeedPage.css';
+
+const TOP_UP_READ_RATIO = 0.8; // pay when user has read >=80%
+
+const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEnd }) => {
+  const navigate = useNavigate();
+  const stellarService = getStellarX402Service();
+
+  const [articles, setArticles]             = useState([]);
+  const [readIds, setReadIds]               = useState(new Set());
+  const [isLoadingArticles, setIsLoadingArticles] = useState(false);
+  const [isAgentWorking, setIsAgentWorking] = useState(false);
+  const [agentStatus, setAgentStatus]       = useState(null);
+  const [agentLog, setAgentLog]             = useState([]);
+  const [transactions, setTransactions]     = useState([]);
+  const [totalSpent, setTotalSpent]         = useState(0);
+  const [batchCount, setBatchCount]         = useState(0);
+  const [selectedArticle, setSelectedArticle] = useState(null);
+  const [budgetExhausted, setBudgetExhausted] = useState(false);
+
+  const agentRunningRef = useRef(false);
+  const hasLoadedFreeRef = useRef(false);
+  const lastTopUpTriggerAtRef = useRef(0);
+
+  const logAgent = (entry) => {
+    setAgentLog(prev => [{ ...entry, time: new Date().toLocaleTimeString() }, ...prev]);
+  };
+
+  const loadFreeBatch = useCallback(async () => {
+    if (hasLoadedFreeRef.current) return;
+    hasLoadedFreeRef.current = true;
+
+    try {
+      setIsLoadingArticles(true);
+      const free = await stellarService.fetchFreeBatch();
+      setArticles(
+        (free || []).map(a => ({ ...a, id: `${a.id}-free` }))
+      );
+      setAgentStatus({ type: 'success', icon: '📰', message: 'Loaded 10 free articles.' });
+      setTimeout(() => setAgentStatus(null), 2500);
+    } catch (err) {
+      console.error('Free batch error:', err.message);
+      setArticles(demoArticles);
+      setAgentStatus({ type: 'error', icon: '⚠️', message: 'Free batch unavailable — showing demo articles.' });
+      setTimeout(() => setAgentStatus(null), 5000);
+    } finally {
+      setIsLoadingArticles(false);
+    }
+  }, [stellarService]);
+
+  /**
+   * Next batch when ≥80% of current articles are read (see useEffect below).
+   * No interest / LLM gate — always pays via x402 when this runs.
+   */
+  const agentFetchBatch = useCallback(async () => {
+    if (agentRunningRef.current) return;
+    if (!stellarService.hasBudget()) {
+      setBudgetExhausted(true);
+      setAgentStatus({ type: 'error', icon: '🛑', message: 'Budget exhausted.' });
+      return;
+    }
+
+    agentRunningRef.current = true;
+    setIsAgentWorking(true);
+
+    try {
+      setAgentStatus({ type: 'info', icon: '⚡',
+        message: 'Reading threshold met — requesting next batch (x402)...' });
+
+      logAgent({
+        type: 'fetch',
+        decision: 'pay',
+        reason: '≥80% of articles read — fetching next batch (Stellar x402)',
+      });
+
+      setIsLoadingArticles(true);
+
+      const { txRecord, articles: newArticles } = await stellarService.payForBatch();
+
+      setTransactions(stellarService.getSessionSummary().transactions);
+      setTotalSpent(stellarService.totalSpent);
+      setBatchCount(stellarService.batchCount);
+
+      setAgentStatus({ type: 'success', icon: '✅',
+        message: `Batch #${txRecord.batch} settled — ${newArticles.length} articles added.` });
+
+      logAgent({
+        type: 'success',
+        decision: 'paid',
+        reason: `x402 batch #${txRecord.batch} · ${newArticles.length} articles`,
+      });
+
+      setArticles(prev => {
+        const existingIds = new Set(prev.map(a => a.id));
+        const fresh = newArticles
+          .filter(a => !existingIds.has(a.id))
+          .map(a => ({ ...a, id: `${a.id}-b${txRecord.batch}` }));
+        return [...prev, ...fresh];
+      });
+
+      setTimeout(() => setAgentStatus(null), 4000);
+
+    } catch (err) {
+      console.error('Agent error:', err.message);
+
+      if (err.message === 'SESSION_NOT_FUNDED') {
+        setAgentStatus({ type: 'error', icon: '💳',
+          message: 'Session wallet not funded. Please restart and approve the funding transaction.' });
+      } else if (err.message === 'SESSION_WALLET_EMPTY') {
+        setBudgetExhausted(true);
+        setAgentStatus({ type: 'error', icon: '💸',
+          message: 'Session wallet is empty. Start a new session to refund.' });
+      } else if (err.message === 'SESSION_BUDGET_EXHAUSTED') {
+        setBudgetExhausted(true);
+        setAgentStatus({ type: 'error', icon: '🛑', message: 'Budget exhausted.' });
+      } else if (err.message === 'BACKEND_UNAVAILABLE') {
+        setArticles(demoArticles);
+        setAgentStatus({ type: 'error', icon: '⚠️',
+          message: 'Backend unavailable — showing demo articles.' });
+      } else if (err.message?.startsWith('PAYMENT_REJECTED:')) {
+        setAgentStatus({ type: 'error', icon: '✗',
+          message: `Payment rejected: ${err.message.replace('PAYMENT_REJECTED:', '').trim()}` });
+      } else {
+        setAgentStatus({ type: 'error', icon: '⚠️', message: `Error: ${err.message}` });
+      }
+    } finally {
+      setIsAgentWorking(false);
+      setIsLoadingArticles(false);
+      agentRunningRef.current = false;
+    }
+  }, [stellarService]);
+
+  // Initial load + ensure x402 client is initialized (fixes "Service not initialized")
+  useEffect(() => {
+    if (!walletAddress) { navigate('/'); return; }
+    stellarService.ensureSession(walletAddress, sessionBudget);
+    loadFreeBatch();
+  }, []); // eslint-disable-line
+
+  // 80% read trigger (debounced)
+  useEffect(() => {
+    if (articles.length === 0) return;
+    if (budgetExhausted) return;
+    if (agentRunningRef.current) return;
+
+    const total = articles.length;
+    const read = readIds.size;
+    const readRatio = total > 0 ? (read / total) : 0;
+    const unread = total - read;
+
+    // Only top-up when user is actually consuming (prevents paying immediately after load)
+    if (read === 0) return;
+
+    // Condition: read >= 80% OR unread <= 20% of total
+    const shouldTopUp = readRatio >= TOP_UP_READ_RATIO || (unread / total) <= (1 - TOP_UP_READ_RATIO);
+    if (!shouldTopUp) return;
+
+    // Simple debounce to avoid double-firing on rapid state updates
+    const now = Date.now();
+    if (now - lastTopUpTriggerAtRef.current < 5000) return;
+    lastTopUpTriggerAtRef.current = now;
+
+    agentFetchBatch();
+  }, [readIds, articles.length, agentFetchBatch, budgetExhausted, articles]);
+
+  const handleArticleClick = (article) => {
+    setSelectedArticle(article);
+    if (!readIds.has(article.id)) {
+      setReadIds(prev => new Set([...prev, article.id]));
+    }
+  };
+
+  const handleEndSession = () => {
+    const summary = stellarService.getSessionSummary();
+    summary.articlesRead = readIds.size;
+    onSessionEnd(summary);
+    navigate('/confirmation');
+  };
+
+  const unreadCount = articles.filter(a => !readIds.has(a.id)).length;
+  const readRatio = articles.length > 0 ? (readIds.size / articles.length) : 0;
+
+  return (
+    <div className="feed-page">
+      <Header walletAddress={walletAddress} totalSpent={totalSpent} batchCount={batchCount} />
+
+      <div className="feed-layout">
+        <aside className="feed-sidebar">
+          <BillingCounter
+            articlesRead={readIds.size}
+            totalBatches={batchCount}
+            totalSpent={totalSpent}
+            budgetXLM={sessionBudget}
+            remainingBudget={parseFloat(stellarService.getRemainingBudget())}
+          />
+
+          <div className="card interests-card">
+            <h4>🧠 Agent Interests</h4>
+            <p>{userInterests}</p>
+            <span className="autonomous-badge">🤖 Autonomous mode</span>
+          </div>
+
+          <div className="buffer-status card">
+            <h4>📊 Reading Progress</h4>
+            <div className="buffer-numbers">
+              <div className="buffer-stat">
+                <span className="buffer-val">{unreadCount}</span>
+                <span className="buffer-label">Unread</span>
+              </div>
+              <div className="buffer-sep">/</div>
+              <div className="buffer-stat">
+                <span className="buffer-val">{articles.length}</span>
+                <span className="buffer-label">Total</span>
+              </div>
+            </div>
+            <div className="buffer-bar">
+              <div className="buffer-fill" style={{
+                width: articles.length > 0 ? `${Math.max(0, Math.min(100, (readRatio * 100)))}%` : '0%',
+                background: readRatio >= TOP_UP_READ_RATIO ? 'var(--accent-red)' : 'var(--stellar-blue)',
+              }} />
+            </div>
+            <p className="buffer-note">
+              {readRatio >= TOP_UP_READ_RATIO
+                ? '🤖 Agent paying autonomously...'
+                : `Auto-pays when you read ≥ ${Math.round(TOP_UP_READ_RATIO * 100)}%`}
+            </p>
+          </div>
+
+          <AgentLog
+            transactions={transactions}
+            isAgentWorking={isAgentWorking}
+            agentStatus={agentStatus}
+            agentLog={agentLog}
+          />
+
+          {readIds.size > 0 && (
+            <button className="btn end-session-btn" onClick={handleEndSession}>
+              End Session →
+            </button>
+          )}
+
+          <div className="sidebar-note">
+            <span>⭐</span>
+            <span>Stellar · XLM · x402 · Autonomous</span>
+          </div>
+        </aside>
+
+        <main className="feed-main">
+          <div className="feed-header">
+            <div>
+              <h2>{articles.length > 0 ? 'Live Web3 News' : 'Loading...'}</h2>
+              <p className="feed-subtitle">
+                {readIds.size === 0
+                  ? 'Agent evaluates and pays autonomously — no more popups'
+                  : `${readIds.size} read · ${unreadCount} unread · ${batchCount} batch${batchCount !== 1 ? 'es' : ''} paid`}
+              </p>
+            </div>
+            {articles.length > 0 && (
+              <div className="live-badge-row">
+                <span className="live-dot-anim" />
+                <span>x402 · Autonomous</span>
+              </div>
+            )}
+          </div>
+
+          {isLoadingArticles && articles.length === 0 && (
+            <div className="articles-grid">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="skeleton-card">
+                  <div className="skeleton-img" />
+                  <div className="skeleton-body">
+                    <div className="skeleton-line" />
+                    <div className="skeleton-line short" />
+                    <div className="skeleton-line shorter" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {articles.length > 0 && (
+            <div className="articles-grid">
+              {articles.map(article => (
+                <ArticleCard
+                  key={article.id}
+                  article={article}
+                  isRead={readIds.has(article.id)}
+                  onClick={() => handleArticleClick(article)}
+                />
+              ))}
+              {isLoadingArticles && (
+                <div className="loading-more">
+                  <span className="al-spinner" />
+                  <span>Agent evaluating + paying autonomously...</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {budgetExhausted && (
+            <div className="budget-banner">
+              <span>🛑</span>
+              <div>
+                <strong>Session budget exhausted</strong>
+                <p>{readIds.size} articles read across {batchCount} batches.</p>
+              </div>
+              <button className="btn btn-primary" onClick={handleEndSession}>
+                View Summary →
+              </button>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {selectedArticle && (
+        <div className="modal-overlay" onClick={() => setSelectedArticle(null)}>
+          <div className="article-modal" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedArticle(null)}>✕</button>
+            <div className="modal-image">
+              <img src={selectedArticle.image} alt={selectedArticle.title} />
+              <span className="modal-cat">{selectedArticle.category}</span>
+            </div>
+            <div className="modal-body">
+              <h1>{selectedArticle.title}</h1>
+              <div className="modal-meta">
+                <span>✍️ {selectedArticle.author}</span>
+                <span>⏱️ {selectedArticle.readTime}</span>
+                <span>🕐 {selectedArticle.publishedAt}</span>
+              </div>
+              <div className="modal-content">
+                {selectedArticle.content.split('\n\n').map((para, i) => (
+                  <p key={i}>{para}</p>
+                ))}
+              </div>
+              {selectedArticle.url && (
+                <a href={selectedArticle.url} target="_blank" rel="noopener noreferrer"
+                  className="btn btn-outline read-original">
+                  Read full article on {selectedArticle.source} ↗
+                </a>
+              )}
+              <div className="modal-paid-badge">
+                ✓ Unlocked via x402 · Autonomous agent payment · Verified on Stellar Horizon
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default NewsFeedPage;
