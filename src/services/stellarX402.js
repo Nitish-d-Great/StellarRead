@@ -98,12 +98,12 @@ class StellarX402Service {
     if (!this.isInitialized) this.initialize(walletAddress, budgetXLM);
   }
 
-  hasBudget() {
-    // Enforce cap before triggering next paid batch.
-    const nextBatchCost = Number.isFinite(CONFIG.PRICE_PER_BATCH_USD)
-      ? CONFIG.PRICE_PER_BATCH_USD
-      : 0.1;
-    return (this.totalSpent + nextBatchCost) <= this.sessionBudget;
+  hasBudget(cost) {
+    if (cost === undefined) {
+      cost = Number.isFinite(CONFIG.PRICE_PER_BATCH_USD) ? CONFIG.PRICE_PER_BATCH_USD : 0.1;
+    }
+    // Add 0.0001 to prevent floating point rejection (e.g. 0.45 + 0.05 = 0.5000000000000001 > 0.50)
+    return (this.totalSpent + cost) <= (this.sessionBudget + 0.0001);
   }
 
   getRemainingBudget() {
@@ -204,7 +204,7 @@ class StellarX402Service {
   async payForSummary(title, content) {
     if (!this.isInitialized) throw new Error('Service not initialized');
     if (!this.agentSecret) throw new Error('SESSION_NOT_FUNDED');
-    if (!this.hasBudget()) throw new Error('Insufficient Agent Budget. Please restart session.');
+    if (!this.hasBudget(0.05)) throw new Error('Insufficient Agent Budget. Please restart session.');
 
     const signer = createEd25519Signer(this.agentSecret, CONFIG.STELLAR_NETWORK_CAIP2);
     const core = new x402Client().register(
