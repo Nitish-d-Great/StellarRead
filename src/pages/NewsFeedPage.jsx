@@ -26,6 +26,19 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [budgetExhausted, setBudgetExhausted] = useState(false);
 
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+  const toggleTheme = () => {
+    if (isDark) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setIsDark(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setIsDark(true);
+    }
+  };
+
   const agentRunningRef = useRef(false);
   const hasLoadedFreeRef = useRef(false);
   const lastTopUpTriggerAtRef = useRef(0);
@@ -196,6 +209,10 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
 
   return (
     <div className="feed-page">
+      <button className="theme-toggle-btn" onClick={toggleTheme} aria-label="Toggle Dark Mode">
+        {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
+      </button>
+
       <Header walletAddress={walletAddress} totalSpent={totalSpent} batchCount={batchCount} />
 
       <div className="feed-layout">

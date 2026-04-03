@@ -34,6 +34,19 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
   const [fundingError, setFundingError]   = useState(null);
   const [fundingTx, setFundingTx]         = useState(null);
 
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+  const toggleTheme = () => {
+    if (isDark) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setIsDark(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setIsDark(true);
+    }
+  };
+
   const connectedAddress = address || walletAddress;
 
   const handleConnect = async () => {
@@ -87,6 +100,9 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
 
   return (
     <div className="landing">
+      <button className="theme-toggle-btn" onClick={toggleTheme} aria-label="Toggle Dark Mode">
+        {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
+      </button>
 
       {/* Hero */}
       <div className="landing-hero">
