@@ -85,6 +85,9 @@ html.dark {
   --bg-hover: #334155;
   --bg-sidebar: #0F172A;
 
+  /* Custom overrides for budget button contrast in dark mode */
+  --stellar-blue-light: #1E3A8A;
+
   /* Text */
   --text-primary: #F8FAFC;
   --text-secondary: #CBD5E1;

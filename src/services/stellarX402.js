@@ -7,7 +7,7 @@
  * - Facilitator sponsors fees + settles on-chain
  */
 
-import { signAuthEntry } from '@stellar/freighter-api';
+import { createEd25519Signer } from '@x402/stellar';
 import { x402Client } from '@x402/core/client';
 import { x402HTTPClient } from '@x402/core/http';
 import { ExactStellarScheme } from '@x402/stellar/exact/client';
@@ -58,6 +58,7 @@ class StellarX402Service {
   constructor() {
     this.userAddress         = null;   // user's Freighter wallet
     this.sessionBudget       = 0;
+    this.agentSecret         = null;
     this.totalSpent          = 0;
     this.transactions        = [];
     this.batchCount          = 0;
@@ -80,9 +81,10 @@ class StellarX402Service {
    * Full initialization:
    * - Store wallet address + session settings
    */
-  async initialize(userAddress, budgetXLM = 1.0) {
+  async initialize(userAddress, budgetXLM = 1.0, agentSecret = null) {
     this.userAddress   = userAddress;
     this.sessionBudget = budgetXLM;
+    this.agentSecret   = agentSecret;
     this.totalSpent    = 0;
     this.transactions  = [];
     this.batchCount    = 0;
@@ -117,17 +119,12 @@ class StellarX402Service {
    */
   async payForBatch() {
     if (!this.isInitialized) throw new Error('Service not initialized');
-    if (!this.userAddress) throw new Error('Wallet not connected');
+    if (!this.agentSecret) throw new Error('SESSION_NOT_FUNDED');
 
     const batchNum = this.batchCount + 1;
 
-    // Build x402 client (Freighter signs auth entries)
-    const signer = {
-      address: this.userAddress,
-      signAuthEntry: async (authEntryXdr) => {
-        return await signAuthEntry(authEntryXdr, { address: this.userAddress });
-      },
-    };
+    // Use autonomous agent signer
+    const signer = createEd25519Signer(this.agentSecret, CONFIG.STELLAR_NETWORK_CAIP2);
 
     const core = new x402Client().register(
       'stellar:*',

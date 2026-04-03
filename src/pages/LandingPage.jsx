@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFreighter } from '../hooks/useFreighter';
+import * as StellarSdk from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
 import './LandingPage.css';
 
 const BUDGET_OPTIONS = [
@@ -16,23 +18,26 @@ const INTEREST_SUGGESTIONS = [
 
 const DEFAULT_INTERESTS = 'Stellar, DeFi, AI agents, stablecoins';
 
+// Constants
+const TESTNET_USDC_ISSUER = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
+
 // Steps in the setup flow
 const STEP = {
-  CONNECT:  'connect',
-  SETUP:    'setup',
-  FUNDING:  'funding',
+  CONNECT: 'connect',
+  SETUP: 'setup',
+  FUNDING: 'funding',
 };
 
 const LandingPage = ({ onSessionStart, walletAddress }) => {
   const navigate = useNavigate();
   const { address, isConnected, isConnecting, error, connect } = useFreighter();
 
-  const [step, setStep]                   = useState(STEP.CONNECT);
+  const [step, setStep] = useState(STEP.CONNECT);
   const [selectedBudget, setSelectedBudget] = useState(1.0);
-  const [interests, setInterests]         = useState(DEFAULT_INTERESTS);
-  const [isFunding, setIsFunding]         = useState(false);
-  const [fundingError, setFundingError]   = useState(null);
-  const [fundingTx, setFundingTx]         = useState(null);
+  const [interests, setInterests] = useState(DEFAULT_INTERESTS);
+  const [isFunding, setIsFunding] = useState(false);
+  const [fundingError, setFundingError] = useState(null);
+  const [fundingStatus, setFundingStatus] = useState('');
 
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
   const toggleTheme = () => {
@@ -56,7 +61,7 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
 
   const toggleInterest = (tag) => {
     const current = interests.split(',').map(s => s.trim()).filter(Boolean);
-    const exists  = current.some(i => i.toLowerCase() === tag.toLowerCase());
+    const exists = current.some(i => i.toLowerCase() === tag.toLowerCase());
     const updated = exists
       ? current.filter(i => i.toLowerCase() !== tag.toLowerCase())
       : [...current, tag];
@@ -64,31 +69,108 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
   };
 
   /**
-   * User clicks "Start Agent" — this triggers the ONE Freighter approval.
- * Spec-compliant x402 on Stellar uses Soroban auth-entry signing per payment.
- * Session starts immediately after wallet connect.
+   * Generates Agent Wallet, gets XLM from Friendbot, adds USDC Trustline,
+   * then requests exactly ONE Freighter 1.0 USDC payment from user to fund the Agent.
    */
   const handleFundAndStart = async () => {
     if (!connectedAddress || !interests.trim()) return;
 
     setIsFunding(true);
     setFundingError(null);
+    setFundingStatus('Generating ephemeral agent wallet...');
     setStep(STEP.FUNDING);
 
     try {
-      // No funding step required for spec-compliant flow; facilitator sponsors fees.
-      console.log('✅ Session started. Payments will use Soroban x402 auth-entry signing.');
+      // 1. Generate Agent Keypair
+      const agentKeypair = StellarSdk.Keypair.random();
+      const agentPubKey = agentKeypair.publicKey();
+      console.log('Generated Autonomous Agent Wallet:', agentPubKey);
 
-      // Notify App, navigate to feed
-      await onSessionStart(connectedAddress, selectedBudget, interests.trim(), null);
+      // 2. Fund with Friendbot
+      setFundingStatus('Requesting XLM from Friendbot for reserves...');
+      const fbRes = await fetch(`https://friendbot.stellar.org?addr=${agentPubKey}`);
+      if (!fbRes.ok) throw new Error('Failed to fund agent via Friendbot. Testnet might be congested.');
+
+      const horizon = new StellarSdk.Horizon.Server('https://horizon-testnet.stellar.org');
+
+      // 3. ChangeTrust for USDC
+      setFundingStatus('Adding USDC trustline to Agent wallet...');
+      const agentAcc = await horizon.loadAccount(agentPubKey);
+      const trustTx = new StellarSdk.TransactionBuilder(agentAcc, {
+        fee: StellarSdk.BASE_FEE,
+        networkPassphrase: StellarSdk.Networks.TESTNET
+      })
+        .addOperation(StellarSdk.Operation.changeTrust({
+          asset: new StellarSdk.Asset('USDC', TESTNET_USDC_ISSUER)
+        }))
+        .setTimeout(30)
+        .build();
+
+      trustTx.sign(agentKeypair);
+      await horizon.submitTransaction(trustTx);
+
+      // 4. Human funds the Agent with USDC via Freighter
+      setFundingStatus('Awaiting your approval in Freighter...');
+
+      const humanAcc = await horizon.loadAccount(connectedAddress);
+      const fundTx = new StellarSdk.TransactionBuilder(humanAcc, {
+        fee: StellarSdk.BASE_FEE,
+        networkPassphrase: StellarSdk.Networks.TESTNET
+      })
+        .addOperation(StellarSdk.Operation.payment({
+          destination: agentPubKey,
+          asset: new StellarSdk.Asset('USDC', TESTNET_USDC_ISSUER),
+          amount: String(selectedBudget)
+        }))
+        .setTimeout(120)
+        .build();
+
+      let signedFundResult;
+      try {
+        signedFundResult = await signTransaction(fundTx.toXDR(), {
+          network: 'TESTNET',
+          networkPassphrase: StellarSdk.Networks.TESTNET,
+        });
+      } catch (err) {
+        throw new Error(err.message || 'Signature failed');
+      }
+
+      if (signedFundResult && signedFundResult.error) {
+        throw new Error(signedFundResult.error);
+      }
+
+      const signedXdrStr = typeof signedFundResult === 'string'
+        ? signedFundResult
+        : (signedFundResult.signedTxXdr || signedFundResult.signedTransaction || signedFundResult.transactionXdr || signedFundResult.signedCmd);
+
+      if (!signedXdrStr || typeof signedXdrStr !== 'string') {
+        console.error('Unhandled Freighter response:', signedFundResult);
+        throw new Error('Could not parse successful signature from Freighter. Ensure you are using the latest extension version.');
+      }
+
+      setFundingStatus('Submitting funding transaction to Stellar network...');
+
+      const txToSubmit = StellarSdk.TransactionBuilder.fromXDR(signedXdrStr, StellarSdk.Networks.TESTNET);
+      await horizon.submitTransaction(txToSubmit);
+
+      setFundingStatus('Session funded successfully!');
+      console.log('✅ Session started. Agent is fully funded and autonomous.');
+
+      // Notify App, pass the agent secret!
+      await onSessionStart(connectedAddress, selectedBudget, interests.trim(), agentKeypair.secret());
       navigate('/feed');
 
     } catch (err) {
       console.error('Funding error:', err);
-      if (err.message?.includes('rejected') || err.message?.includes('declined')) {
+      // Clean up horizon errors for UI
+      let errorMsg = err.message;
+      if (err.response && err.response.data && err.response.data.extras) {
+        errorMsg = `Payment failed. Do you have ${selectedBudget} USDC? (${err.response.data.extras.result_codes?.operations?.join(', ') || ''})`;
+      }
+      if (errorMsg?.includes('rejected') || errorMsg?.includes('declined')) {
         setFundingError('Action rejected. Please approve in Freighter.');
       } else {
-        setFundingError(err.message || 'Failed to start session.');
+        setFundingError(errorMsg || 'Failed to start session.');
       }
       setStep(STEP.SETUP);
     } finally {
@@ -287,9 +369,9 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
             <div className="funding-spinner">
               <span className="btn-spinner large-spinner" />
             </div>
-            <h3>Funding Agent Wallet...</h3>
-            <p>Preparing your x402 session...</p>
-            <p className="funding-sub">You will approve signatures when paid batches are requested.</p>
+            <h3>Deploying AI Agent...</h3>
+            <p className="funding-status">{fundingStatus || 'Preparing...'}</p>
+            <p className="funding-sub">This creates a secure, ephemeral session wallet for autonomous background payments.</p>
           </div>
         )}
       </div>

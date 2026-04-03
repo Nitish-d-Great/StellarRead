@@ -14,20 +14,14 @@ function App() {
 
   const stellarServiceRef = useRef(null);
 
-  /**
-   * Called from LandingPage after user:
-   *   1. Connects Freighter
-   *   2. Sets interests + budget
-   *   3. Approves the ONE funding transaction
-   */
-  const handleSessionStart = async (address, budget, interests, fundingTxHash) => {
-    getStellarX402Service().initialize(address, budget);
+  const handleSessionStart = async (address, budget, interests, agentSecret) => {
+    getStellarX402Service().initialize(address, budget, agentSecret);
     setWalletAddress(address);
     setSessionBudget(budget);
     setUserInterests(interests);
     setSessionReady(true);
     console.log('🚀 Session started. Agent is now autonomous.');
-    console.log('   Funding tx:', fundingTxHash);
+    console.log('   Agent Secret securely stored in memory.');
   };
 
   const handleSessionEnd = (summary) => {
