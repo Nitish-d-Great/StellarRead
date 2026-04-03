@@ -244,6 +244,7 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
           <BillingCounter
             articlesRead={readIds.size}
             totalBatches={batchCount}
+            totalSummaries={readingDigest.length}
             totalSpent={totalSpent}
             budgetXLM={sessionBudget}
             remainingBudget={parseFloat(stellarService.getRemainingBudget())}
