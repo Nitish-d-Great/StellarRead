@@ -19,6 +19,7 @@ import express from 'express';
 import cors from 'cors';
 import articlesRouter from './routes/articles.js';
 import facilitatorRouter from './routes/facilitator.js';
+import chatRouter from './routes/chat.js';
 import { getX402 } from './services/x402.js';
 
 const app = express();
@@ -57,6 +58,7 @@ app.use((req, res, next) => {
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/articles', articlesRouter);
 app.use('/api/facilitator', facilitatorRouter);
+app.use('/api/chat', chatRouter);
 
 // Health check
 app.get('/health', async (req, res) => {

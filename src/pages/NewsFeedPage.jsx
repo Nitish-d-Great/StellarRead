@@ -25,6 +25,8 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
   const [batchCount, setBatchCount]         = useState(0);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [budgetExhausted, setBudgetExhausted] = useState(false);
+  const [readingDigest, setReadingDigest]     = useState([]);
+  const [isSummarizing, setIsSummarizing]     = useState(false);
 
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
   const toggleTheme = () => {
@@ -204,6 +206,28 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
     navigate('/confirmation');
   };
 
+  const handleSummarize = async () => {
+    if (!selectedArticle) return;
+    setIsSummarizing(true);
+    setAgentStatus({ type: 'info', icon: '🤖', message: 'Agent negotiating x402 payment for Groq compute...' });
+
+    try {
+      const { summary } = await stellarService.payForSummary(selectedArticle.title, selectedArticle.content);
+      
+      setReadingDigest(prev => [...prev, { title: selectedArticle.title, summary }]);
+      setTransactions(stellarService.getSessionSummary().transactions);
+      setTotalSpent(stellarService.totalSpent);
+      
+      setAgentStatus({ type: 'success', icon: '✨', message: 'Summary generated & safely paywalled for $0.05 USDC.' });
+      setTimeout(() => setAgentStatus(null), 4000);
+    } catch (err) {
+      console.error('Summarize error:', err.message);
+      setAgentStatus({ type: 'error', icon: '⚠️', message: `Summary failed: ${err.message}` });
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
   const unreadCount = articles.filter(a => !readIds.has(a.id)).length;
   const readRatio = articles.length > 0 ? (readIds.size / articles.length) : 0;
 
@@ -341,6 +365,27 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
             </div>
           )}
         </main>
+
+        <aside className="digest-sidebar">
+          <div className="digest-header">
+            <span style={{fontSize: '1.5rem'}}>🧠</span>
+            <h3>Reading Digest</h3>
+          </div>
+          {readingDigest.length === 0 ? (
+            <div className="digest-empty">
+              Open an article and ask the Agent to summarize it.
+            </div>
+          ) : (
+            <div className="digest-list">
+              {readingDigest.map((item, idx) => (
+                <div className="digest-item" key={idx}>
+                  <h4 className="digest-title">{item.title}</h4>
+                  <p className="digest-summary">{item.summary}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
       </div>
 
       {selectedArticle && (
@@ -369,6 +414,19 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
                   Read full article on {selectedArticle.source} ↗
                 </a>
               )}
+              <button 
+                className="summarize-btn" 
+                onClick={handleSummarize}
+                disabled={isSummarizing || readingDigest.some(d => d.title === selectedArticle.title)}
+              >
+                {isSummarizing ? (
+                  <><span className="al-spinner"/> Negotiating paid compute...</>
+                ) : readingDigest.some(d => d.title === selectedArticle.title) ? (
+                  <>✓ Summarized</>
+                ) : (
+                  <>✨ Ask Agent to Summarize (0.05 USDC)</>
+                )}
+              </button>
               <div className="modal-paid-badge">
                 ✓ Unlocked via x402 · Wallet-approved signature · Settled on Stellar
               </div>

@@ -108,6 +108,16 @@ export async function getX402() {
       description: 'Unlock the next batch of StellarRead news articles',
       mimeType: 'application/json',
     },
+    'POST /api/chat/summarize': {
+      accepts: {
+        scheme: 'exact',
+        network,
+        payTo,
+        price: '0.05',
+      },
+      description: 'Groq AI Article Summarization Compute',
+      mimeType: 'application/json',
+    },
   };
 
   const httpServer = new x402HTTPResourceServer(resourceServer, routes);
