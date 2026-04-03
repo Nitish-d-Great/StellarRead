@@ -216,8 +216,8 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: var(--accent-red-light);
-  border: 1px solid rgba(239,68,68,0.2);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
 }
