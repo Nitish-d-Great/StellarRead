@@ -25,7 +25,7 @@ const Header = ({ walletAddress, totalSpent, batchCount }) => {
           {totalSpent > 0 && (
             <div className="header-stat">
               <span className="stat-label">Spent</span>
-              <span className="stat-val">{totalSpent.toFixed(2)} XLM</span>
+              <span className="stat-val">{totalSpent.toFixed(2)} USD</span>
             </div>
           )}
           {shortAddress && (

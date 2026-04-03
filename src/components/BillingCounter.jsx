@@ -25,7 +25,7 @@ const BillingCounter = ({ articlesRead, totalBatches, totalSpent, budgetXLM, rem
         </div>
         <div className="bc-divider" />
         <div className="bc-stat">
-          <span className="bc-stat-label">XLM Spent</span>
+          <span className="bc-stat-label">Spent (USD est.)</span>
           <span className="bc-stat-val cost">{(totalSpent || 0).toFixed(2)}</span>
         </div>
       </div>
@@ -35,7 +35,7 @@ const BillingCounter = ({ articlesRead, totalBatches, totalSpent, budgetXLM, rem
         <div className="bc-budget">
           <div className="bc-budget-labels">
             <span>Budget used</span>
-            <span>{(totalSpent || 0).toFixed(2)} / {budgetXLM} XLM</span>
+            <span>{(totalSpent || 0).toFixed(2)} / {budgetXLM} USD</span>
           </div>
           <div className="bc-budget-bar">
             <div
@@ -46,18 +46,18 @@ const BillingCounter = ({ articlesRead, totalBatches, totalSpent, budgetXLM, rem
               }}
             />
           </div>
-          <p className="bc-remaining">{(remainingBudget || 0).toFixed(2)} XLM remaining</p>
+          <p className="bc-remaining">{(remainingBudget || 0).toFixed(2)} USD remaining</p>
         </div>
       )}
 
       <div className="bc-rate">
         <span>Rate</span>
-        <span>0.10 XLM / 10 articles</span>
+        <span>$0.10 USDC / 10 articles</span>
       </div>
 
       <div className="bc-network">
         <span className="bc-net-dot" />
-        <span>Stellar Testnet · XLM</span>
+        <span>Stellar Testnet · x402 exact (USDC)</span>
       </div>
     </div>
   );

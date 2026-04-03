@@ -7,7 +7,8 @@ const router = express.Router();
 router.get('/supported', async (req, res) => {
   try {
     const { facilitator } = await getX402();
-    res.json(facilitator.getSupported());
+    const data = await facilitator.getSupported();
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: 'facilitator_supported_failed', message: err.message });
   }

@@ -64,6 +64,9 @@ export function useFreighter() {
 
       } catch (err) {
         // Non-fatal — Freighter may not be installed
+        // Non-fatal — Freighter may not be installed
+        // Non-fatal — Freighter may not be installed
+        // Non-fatal — Freighter may not be installed
         console.log('Freighter mount check:', err.message);
       }
     };

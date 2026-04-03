@@ -33,6 +33,33 @@ export async function fetchArticles(limit = ARTICLES_PER_BATCH) {
   return fetchFmp(limit);
 }
 
+export async function fetchUniqueArticles(limit = ARTICLES_PER_BATCH, excludeIds = []) {
+  const target = Math.max(1, Number(limit) || ARTICLES_PER_BATCH);
+  const excluded = new Set((excludeIds || []).map(id => String(id)));
+  const collected = [];
+  const collectedIds = new Set();
+
+  // Multiple attempts help when providers return overlapping "latest" sets.
+  for (let attempt = 0; attempt < 8 && collected.length < target; attempt += 1) {
+    const candidateLimit = Math.max(target * 4, 20);
+    const batch = await fetchArticles(candidateLimit);
+
+    for (const article of batch) {
+      const id = String(article?.id || '');
+      if (!id) continue;
+      if (excluded.has(id) || collectedIds.has(id)) continue;
+      collectedIds.add(id);
+      collected.push(article);
+      if (collected.length >= target) break;
+    }
+  }
+
+  if (collected.length < target) {
+    throw new Error(`UNIQUE_ARTICLES_EXHAUSTED:${collected.length}/${target}`);
+  }
+  return collected.slice(0, target);
+}
+
 async function fetchFmp(limit) {
   const key = FMP_API_KEY.trim();
   if (!key) {
@@ -41,7 +68,8 @@ async function fetchFmp(limit) {
     );
   }
 
-  const url = `${FMP_DEFAULT_ENDPOINT}?page=0&limit=${limit}&apikey=${encodeURIComponent(key)}`;
+  const randomPage = Math.floor(Math.random() * 10);
+  const url = `${FMP_DEFAULT_ENDPOINT}?page=${randomPage}&limit=${limit}&apikey=${encodeURIComponent(key)}`;
   const response = await fetch(url);
 
   if (!response.ok) {
@@ -72,8 +100,8 @@ async function fetchFmp(limit) {
     const published =
       item.publishedDate || item.date || item.published_at || item.datetime;
     const symbol = item.symbol || item.tickers || '';
-    const id =
-      String(item.id || item.news_id || urlArticle || `fmp-${index}-${Date.now()}`);
+    const fallback = `${title}|${published || ''}|${item.site || item.source || ''}`;
+    const id = String(item.id || item.news_id || urlArticle || fallback);
 
     return {
       id,
@@ -119,8 +147,8 @@ async function fetchCryptoCompare(limit) {
 
   const shuffled = [...data.Data].sort(() => Math.random() - 0.5);
 
-  return shuffled.slice(0, limit).map((item, index) => ({
-    id: item.id?.toString() || `cc-${index}-${Date.now()}`,
+  return shuffled.slice(0, limit).map((item) => ({
+    id: String(item.id || item.guid || item.url || `${item.title || 'untitled'}|${item.published_on || ''}`),
     title: item.title,
     summary: item.body?.slice(0, 200) + '...' || item.title,
     content: item.body || item.title,
@@ -186,7 +214,7 @@ async function fetchCoindeskRss(limit) {
     const link = extractTagXml(block, 'link') || '';
     const description = extractTagXml(block, 'description') || '';
     const pubDateRaw = extractTagXml(block, 'pubDate') || '';
-    const guid = extractGuid(block) || `cd-${index}-${Date.now()}`;
+    const guid = extractGuid(block) || `${title}|${pubDateRaw}|${link}`;
     const author =
       extractTagXml(block, 'dc:creator') || extractTagXml(block, 'creator') || 'CoinDesk';
     const image = extractMediaUrl(block);

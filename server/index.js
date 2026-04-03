@@ -31,7 +31,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type',
-    'x-payment-proof',
     'Authorization',
     'PAYMENT-SIGNATURE',
     'PAYMENT-REQUIRED',
@@ -47,10 +46,10 @@ await getX402();
 
 // ── Request logging ──────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  const proof = req.headers['x-payment-proof'];
+  const hasPaymentSig = Boolean(req.headers['payment-signature']);
   console.log(
     `${new Date().toISOString()} ${req.method} ${req.path}`,
-    proof ? `[proof: ${proof.slice(0, 8)}...]` : '[no proof]'
+    hasPaymentSig ? '[payment-signature: present]' : '[payment-signature: absent]'
   );
   next();
 });
@@ -60,14 +59,23 @@ app.use('/api/articles', articlesRouter);
 app.use('/api/facilitator', facilitatorRouter);
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  let facilitatorMode = 'unknown';
+  try {
+    const x = await getX402();
+    facilitatorMode = x.facilitatorMode || 'unknown';
+  } catch {
+    facilitatorMode = 'error';
+  }
   res.json({
     status: 'ok',
     service: 'StellarRead x402 Server',
     network: process.env.STELLAR_NETWORK || 'TESTNET',
-    asset: process.env.PAYMENT_ASSET || 'XLM',
+    asset: 'USDC (x402 exact on Stellar)',
     pricePerBatch: process.env.PRICE_PER_BATCH || '0.10',
     publisherAddress: process.env.PUBLISHER_ADDRESS,
+    facilitatorMode,
+    facilitatorUrl: (process.env.FACILITATOR_URL || '').trim() || 'default (OpenZeppelin testnet if http)',
     timestamp: new Date().toISOString(),
   });
 });
@@ -84,12 +92,19 @@ app.use((err, req, res, next) => {
 });
 
 // ── Start ────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  let mode = 'unknown';
+  try {
+    mode = (await getX402()).facilitatorMode || 'unknown';
+  } catch {
+    mode = 'error';
+  }
   console.log(`
 ⭐ StellarRead x402 Server running on port ${PORT}
 
    Network:   ${process.env.STELLAR_NETWORK || 'TESTNET'}
-   Asset:     ${process.env.PAYMENT_ASSET || 'XLM'}
+   Facilitator: ${mode} (http = OpenZeppelin Channels or FACILITATOR_URL; local = in-process key)
+   Asset:     USDC (x402 exact on Stellar)
    Price:     ${process.env.PRICE_PER_BATCH || '0.10'} per batch
    Publisher: ${process.env.PUBLISHER_ADDRESS || '⚠️  NOT SET'}
    Frontend:  ${FRONTEND_URL}

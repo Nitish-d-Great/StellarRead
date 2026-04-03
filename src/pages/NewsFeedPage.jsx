@@ -42,7 +42,11 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
       setIsLoadingArticles(true);
       const free = await stellarService.fetchFreeBatch();
       setArticles(
-        (free || []).map(a => ({ ...a, id: `${a.id}-free` }))
+        (free || []).map(a => ({
+          ...a,
+          sourceId: String(a.id),
+          id: `${a.id}-free`,
+        }))
       );
       setAgentStatus({ type: 'success', icon: '📰', message: 'Loaded 10 free articles.' });
       setTimeout(() => setAgentStatus(null), 2500);
@@ -99,11 +103,13 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
       });
 
       setArticles(prev => {
-        const existingIds = new Set(prev.map(a => a.id));
-        const fresh = newArticles
-          .filter(a => !existingIds.has(a.id))
-          .map(a => ({ ...a, id: `${a.id}-b${txRecord.batch}` }));
-        return [...prev, ...fresh];
+        const mapped = (Array.isArray(newArticles) ? newArticles : []).map((a, idx) => ({
+          ...a,
+          sourceId: String(a.id),
+          id: `${a.id}-b${txRecord.batch}-${idx}`,
+        }));
+
+        return [...prev, ...mapped];
       });
 
       setTimeout(() => setAgentStatus(null), 4000);
@@ -249,7 +255,7 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
 
           <div className="sidebar-note">
             <span>⭐</span>
-            <span>Stellar · XLM · x402 · Autonomous</span>
+            <span>Stellar · USDC · x402 · Auto-triggered</span>
           </div>
         </aside>
 
@@ -259,14 +265,14 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
               <h2>{articles.length > 0 ? 'Live Web3 News' : 'Loading...'}</h2>
               <p className="feed-subtitle">
                 {readIds.size === 0
-                  ? 'Agent evaluates and pays autonomously — no more popups'
+                  ? 'Agent auto-triggers x402 requests; you approve each wallet signature'
                   : `${readIds.size} read · ${unreadCount} unread · ${batchCount} batch${batchCount !== 1 ? 'es' : ''} paid`}
               </p>
             </div>
             {articles.length > 0 && (
               <div className="live-badge-row">
                 <span className="live-dot-anim" />
-                <span>x402 · Autonomous</span>
+                <span>x402 · User-approved signatures</span>
               </div>
             )}
           </div>
@@ -299,7 +305,7 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
               {isLoadingArticles && (
                 <div className="loading-more">
                   <span className="al-spinner" />
-                  <span>Agent evaluating + paying autonomously...</span>
+                  <span>Agent requesting next batch (awaiting wallet approval)...</span>
                 </div>
               )}
             </div>
@@ -347,7 +353,7 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
                 </a>
               )}
               <div className="modal-paid-badge">
-                ✓ Unlocked via x402 · Autonomous agent payment · Verified on Stellar Horizon
+                ✓ Unlocked via x402 · Wallet-approved signature · Settled on Stellar
               </div>
             </div>
           </div>

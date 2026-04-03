@@ -58,11 +58,11 @@ const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
           </div>
           <div className="conf-stat">
             <span className="cs-val">{(totalSpent || 0).toFixed(2)}</span>
-            <span className="cs-label">XLM Spent</span>
+            <span className="cs-label">Spent (USD est.)</span>
           </div>
           <div className="conf-stat">
             <span className="cs-val">{(budgetRemaining || 0).toFixed(2)}</span>
-            <span className="cs-label">XLM Remaining</span>
+            <span className="cs-label">Budget Remaining</span>
           </div>
         </div>
 
@@ -73,11 +73,10 @@ const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
             <div>
               <strong>How x402 worked in this session</strong>
               <p>
-                Each time your unread buffer dropped to 2 articles, the agent
-                automatically paid <strong>0.10 XLM</strong> on Stellar. The backend
-                verified each transaction on Horizon before returning articles.
-                The Stellar tx hash was the access credential — no API keys,
-                no subscriptions.
+                Each time your read ratio crossed the threshold, the app requested
+                a new batch through x402. The server returned 402 requirements,
+                Freighter signed the payment payload, and the facilitator settled
+                on Stellar before returning articles.
               </p>
             </div>
           </div>
@@ -92,7 +91,7 @@ const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
                 <div key={tx.hash} className="ctx-item">
                   <div className="ctx-top">
                     <span className="ctx-batch">Batch #{tx.batch}</span>
-                    <span className="ctx-amount">{tx.amount} XLM</span>
+                    <span className="ctx-amount">{tx.amount} token units</span>
                     <span className="ctx-status">✓ Confirmed</span>
                   </div>
                   <div className="ctx-hash">

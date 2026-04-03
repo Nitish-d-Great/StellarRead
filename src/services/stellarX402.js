@@ -17,6 +17,7 @@ const CONFIG = {
   ARTICLES_PER_BATCH: 10,
   STELLAR_NETWORK_CAIP2: import.meta.env.VITE_STELLAR_NETWORK_CAIP2 || 'stellar:testnet',
   STELLAR_RPC_URL: import.meta.env.VITE_STELLAR_RPC_URL || '',
+  PRICE_PER_BATCH_USD: parseFloat(import.meta.env.VITE_PRICE_PER_BATCH_USD || '0.10'),
 };
 
 export { CONFIG };
@@ -68,7 +69,8 @@ class StellarX402Service {
    * Used to hydrate the feed with 10 articles immediately.
    */
   async fetchFreeBatch() {
-    const response = await fetch(`${CONFIG.BACKEND_URL}/api/articles/free`);
+    const walletQ = this.userAddress ? `?wallet=${encodeURIComponent(this.userAddress)}` : '';
+    const response = await fetch(`${CONFIG.BACKEND_URL}/api/articles/free${walletQ}`);
     if (!response.ok) throw new Error(`Free batch error: ${response.status}`);
     const data = await response.json();
     return data.articles || [];
@@ -95,8 +97,11 @@ class StellarX402Service {
   }
 
   hasBudget() {
-    // Budgeting here is UX-only; on-chain balance is enforced by the token contract.
-    return this.totalSpent <= this.sessionBudget;
+    // Enforce cap before triggering next paid batch.
+    const nextBatchCost = Number.isFinite(CONFIG.PRICE_PER_BATCH_USD)
+      ? CONFIG.PRICE_PER_BATCH_USD
+      : 0.1;
+    return (this.totalSpent + nextBatchCost) <= this.sessionBudget;
   }
 
   getRemainingBudget() {
@@ -191,12 +196,10 @@ class StellarX402Service {
 
     this.transactions.push(txRecord);
     this.batchCount = batchNum;
-    // Best-effort budget UX: increment by configured "price" in decimal units if available
-    const priceMaybe = paymentRequired?.accepts?.[0]?.amount;
-    if (typeof priceMaybe === 'string' && /^\d+$/.test(priceMaybe)) {
-      // Can't reliably convert token units back to decimal without knowing decimals; keep as 0 for now.
-      this.totalSpent += 0;
-    }
+    // Budget cap is configured in USD; keep spend tracking consistent with that cap.
+    this.totalSpent += Number.isFinite(CONFIG.PRICE_PER_BATCH_USD)
+      ? CONFIG.PRICE_PER_BATCH_USD
+      : 0.1;
 
     return { txRecord, articles: data.articles };
   }

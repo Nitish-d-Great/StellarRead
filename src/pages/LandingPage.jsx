@@ -4,9 +4,9 @@ import { useFreighter } from '../hooks/useFreighter';
 import './LandingPage.css';
 
 const BUDGET_OPTIONS = [
-  { label: '0.5 XLM', value: 0.5, desc: '~50 articles' },
-  { label: '1 XLM',   value: 1.0, desc: '~100 articles', recommended: true },
-  { label: '2 XLM',   value: 2.0, desc: '~200 articles' },
+  { label: '$0.5', value: 0.5, desc: '~50 articles' },
+  { label: '$1.0', value: 1.0, desc: '~100 articles', recommended: true },
+  { label: '$2.0', value: 2.0, desc: '~200 articles' },
 ];
 
 const INTEREST_SUGGESTIONS = [
@@ -97,37 +97,37 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
 
         <h1 className="hero-title">
           Read News.<br />
-          <span className="hero-accent">Agent Pays Autonomously.</span>
+          <span className="hero-accent">Agent Auto-Requests via x402.</span>
         </h1>
 
         <p className="hero-sub">
-          Fund the agent once. It evaluates articles using <strong>AI</strong>,
-          pays per batch on <strong>Stellar</strong> via <strong>x402</strong> —
-          completely autonomously. No signing per batch.
+          The app evaluates reading progress and triggers x402 payment requests on
+          <strong> Stellar</strong>. You approve each wallet signature in
+          <strong> Freighter</strong>.
         </p>
 
         <div className="how-it-works">
           <div className="hiw-step">
             <span className="hiw-num">1</span>
             <div>
-              <strong>Fund once</strong>
-              <p>One Freighter approval</p>
+              <strong>Read threshold reached</strong>
+              <p>Agent detects low unread buffer</p>
             </div>
           </div>
           <div className="hiw-arrow">→</div>
           <div className="hiw-step">
             <span className="hiw-num">2</span>
             <div>
-              <strong>Agent evaluates</strong>
-              <p>AI scores relevance</p>
+              <strong>x402 challenge</strong>
+              <p>Server returns 402 + payment requirements</p>
             </div>
           </div>
           <div className="hiw-arrow">→</div>
           <div className="hiw-step">
             <span className="hiw-num">3</span>
             <div>
-              <strong>Auto-pays</strong>
-              <p>No popups per batch</p>
+              <strong>Freighter approval</strong>
+              <p>Signed payload unlocks the next batch</p>
             </div>
           </div>
         </div>
@@ -143,7 +143,7 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
               <h2>Connect Your Wallet</h2>
               <p>
                 You need <strong>Freighter</strong> on <strong>Testnet</strong>.
-                You'll approve <strong>one transaction</strong> to fund the agent — that's it.
+                You approve signatures when x402 payments are requested.
               </p>
 
               <button
@@ -197,7 +197,7 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
             {/* Interests */}
             <div className="card-section">
               <h3>Your Reading Interests</h3>
-              <p>Agent only pays for batches with ≥ 3 matching articles.</p>
+              <p>Used for feed personalization and future ranking features.</p>
 
               <div className="interest-tags">
                 {INTEREST_SUGGESTIONS.map(tag => (
@@ -225,7 +225,7 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
             {/* Budget */}
             <div className="card-section">
               <h3>Agent Budget</h3>
-              <p>Agent will be funded with this amount. It pays 0.10 XLM per 10 articles autonomously.</p>
+              <p>Session cap for x402 spend. Price target is about $0.10 per 10 articles.</p>
 
               <div className="budget-options">
                 {BUDGET_OPTIONS.map(opt => (
@@ -255,12 +255,11 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
               >
                 {isFunding
                   ? <><span className="btn-spinner" /> Waiting for Freighter...</>
-                  : `Fund Agent (${selectedBudget} XLM) →`}
+                  : `Start Session (Budget $${selectedBudget}) →`}
               </button>
 
               <p className="funding-note">
-                ⚡ This sends {selectedBudget} XLM to the agent's session wallet.
-                After this, <strong>no more popups</strong>.
+                ⚡ Session budget is tracked in-app; wallet signatures still require approval per payment.
               </p>
             </div>
           </>
@@ -273,8 +272,8 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
               <span className="btn-spinner large-spinner" />
             </div>
             <h3>Funding Agent Wallet...</h3>
-            <p>Please approve the transaction in Freighter.</p>
-            <p className="funding-sub">This is the only approval you'll need.</p>
+            <p>Preparing your x402 session...</p>
+            <p className="funding-sub">You will approve signatures when paid batches are requested.</p>
           </div>
         )}
       </div>
@@ -284,7 +283,7 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
         <span className="tech-badge">⭐ Stellar Testnet</span>
         <span className="tech-badge">⚡ x402 Protocol</span>
         <span className="tech-badge">🧠 Groq AI Agent</span>
-        <span className="tech-badge">🤖 Autonomous Payments</span>
+        <span className="tech-badge">🤖 Auto-triggered x402</span>
       </div>
     </div>
   );
