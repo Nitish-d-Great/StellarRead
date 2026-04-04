@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFreighter } from '../hooks/useFreighter';
 import * as StellarSdk from '@stellar/stellar-sdk';
@@ -28,6 +28,21 @@ const STEP = {
   FUNDING: 'funding',
 };
 
+// Particle config
+const PARTICLE_COLORS = ['pink', 'cyan', 'purple', 'blue'];
+const PARTICLE_COUNT = 20;
+
+function generateParticles() {
+  return Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+    id: i,
+    color: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
+    size: 4 + Math.random() * 6,
+    left: Math.random() * 100,
+    delay: Math.random() * 15,
+    duration: 10 + Math.random() * 20,
+  }));
+}
+
 const LandingPage = ({ onSessionStart, walletAddress }) => {
   const navigate = useNavigate();
   const { address, isConnected, isConnecting, error, connect } = useFreighter();
@@ -38,6 +53,7 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
   const [isFunding, setIsFunding] = useState(false);
   const [fundingError, setFundingError] = useState(null);
   const [fundingStatus, setFundingStatus] = useState('');
+  const [particles] = useState(generateParticles);
 
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
   const toggleTheme = () => {
@@ -68,10 +84,6 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
     setInterests(updated.join(', '));
   };
 
-  /**
-   * Generates Agent Wallet, gets XLM from Friendbot, adds USDC Trustline,
-   * then requests exactly ONE Freighter 1.0 USDC payment from user to fund the Agent.
-   */
   const handleFundAndStart = async () => {
     if (!connectedAddress || !interests.trim()) return;
 
@@ -81,19 +93,16 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
     setStep(STEP.FUNDING);
 
     try {
-      // 1. Generate Agent Keypair
       const agentKeypair = StellarSdk.Keypair.random();
       const agentPubKey = agentKeypair.publicKey();
       console.log('Generated Autonomous Agent Wallet:', agentPubKey);
 
-      // 2. Fund with Friendbot
       setFundingStatus('Requesting XLM from Friendbot for reserves...');
       const fbRes = await fetch(`https://friendbot.stellar.org?addr=${agentPubKey}`);
       if (!fbRes.ok) throw new Error('Failed to fund agent via Friendbot. Testnet might be congested.');
 
       const horizon = new StellarSdk.Horizon.Server('https://horizon-testnet.stellar.org');
 
-      // 3. ChangeTrust for USDC
       setFundingStatus('Adding USDC trustline to Agent wallet...');
       const agentAcc = await horizon.loadAccount(agentPubKey);
       const trustTx = new StellarSdk.TransactionBuilder(agentAcc, {
@@ -109,7 +118,6 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
       trustTx.sign(agentKeypair);
       await horizon.submitTransaction(trustTx);
 
-      // 4. Human funds the Agent with USDC via Freighter
       setFundingStatus('Awaiting your approval in Freighter...');
 
       const humanAcc = await horizon.loadAccount(connectedAddress);
@@ -156,13 +164,11 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
       setFundingStatus('Session funded successfully!');
       console.log('✅ Session started. Agent is fully funded and autonomous.');
 
-      // Notify App, pass the agent secret!
       await onSessionStart(connectedAddress, selectedBudget, interests.trim(), agentKeypair.secret());
       navigate('/feed');
 
     } catch (err) {
       console.error('Funding error:', err);
-      // Clean up horizon errors for UI
       let errorMsg = err.message;
       if (err.response && err.response.data && err.response.data.extras) {
         errorMsg = `Payment failed. Do you have ${selectedBudget} USDC? (${err.response.data.extras.result_codes?.operations?.join(', ') || ''})`;
@@ -182,206 +188,301 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
 
   return (
     <div className="landing">
+      {/* Animated Background */}
+      <div className="landing-bg" />
+      <div className="grid-overlay" />
+
+      {/* Floating Particles */}
+      {particles.map(p => (
+        <div
+          key={p.id}
+          className={`particle particle--${p.color}`}
+          style={{
+            width: p.size,
+            height: p.size,
+            left: `${p.left}%`,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+          }}
+        />
+      ))}
+
       <button className="theme-toggle-btn" onClick={toggleTheme} aria-label="Toggle Dark Mode">
         {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
       </button>
 
-      {/* Hero */}
-      <div className="landing-hero">
-        <div className="hero-badge">
-          <span>⭐</span>
-          <span>Stellar Agents x402 Hackathon 2026</span>
+      <div className="landing-content">
+
+        {/* Navbar */}
+        <nav className="landing-nav">
+          <div className="nav-brand">
+            <span className="nav-logo">StellarRead</span>
+            <span className="nav-badge">x402</span>
+          </div>
+          <div className="nav-links">
+            <span className="nav-link">How It Works</span>
+            <span className="nav-link">Technology</span>
+            <a href="https://github.com/Nitish-d-Great/StellarRead" target="_blank" rel="noopener noreferrer" className="nav-link">GitHub</a>
+          </div>
+        </nav>
+
+        {/* Hero */}
+        <div className="landing-hero">
+          <div className="hero-badge">
+            <span>⭐</span>
+            <span>Stellar Agents x402 Hackathon 2026</span>
+          </div>
+
+          <h1 className="hero-title">
+            Read News.<br />
+            <span className="hero-accent">Agent Auto-Requests via x402.</span>
+          </h1>
+
+          <p className="hero-sub">
+            Your autonomous AI agent evaluates reading progress and triggers x402 payment requests on
+            <strong> Stellar</strong>. You approve each wallet signature in
+            <strong> Freighter</strong>.
+          </p>
+
+          <div className="how-it-works">
+            <div className="hiw-step">
+              <span className="hiw-num">1</span>
+              <div>
+                <strong>Read threshold reached</strong>
+                <p>Agent detects low unread buffer</p>
+              </div>
+            </div>
+            <div className="hiw-arrow">→</div>
+            <div className="hiw-step">
+              <span className="hiw-num">2</span>
+              <div>
+                <strong>x402 challenge</strong>
+                <p>Server returns 402 + payment requirements</p>
+              </div>
+            </div>
+            <div className="hiw-arrow">→</div>
+            <div className="hiw-step">
+              <span className="hiw-num">3</span>
+              <div>
+                <strong>Freighter approval</strong>
+                <p>Signed payload unlocks the next batch</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <h1 className="hero-title">
-          Read News.<br />
-          <span className="hero-accent">Agent Auto-Requests via x402.</span>
-        </h1>
+        {/* Card */}
+        <div className="landing-card">
+          <div className="landing-card-inner">
 
-        <p className="hero-sub">
-          The app evaluates reading progress and triggers x402 payment requests on
-          <strong> Stellar</strong>. You approve each wallet signature in
-          <strong> Freighter</strong>.
-        </p>
+            {/* ── Step: Connect ── */}
+            {step === STEP.CONNECT && (
+              <>
+                <div className="card-section">
+                  <h2>Connect Your Wallet</h2>
+                  <p>
+                    You need <strong>Freighter</strong> on <strong>Testnet</strong>.
+                    You approve signatures when x402 payments are requested.
+                  </p>
 
-        <div className="how-it-works">
-          <div className="hiw-step">
-            <span className="hiw-num">1</span>
-            <div>
-              <strong>Read threshold reached</strong>
-              <p>Agent detects low unread buffer</p>
-            </div>
-          </div>
-          <div className="hiw-arrow">→</div>
-          <div className="hiw-step">
-            <span className="hiw-num">2</span>
-            <div>
-              <strong>x402 challenge</strong>
-              <p>Server returns 402 + payment requirements</p>
-            </div>
-          </div>
-          <div className="hiw-arrow">→</div>
-          <div className="hiw-step">
-            <span className="hiw-num">3</span>
-            <div>
-              <strong>Freighter approval</strong>
-              <p>Signed payload unlocks the next batch</p>
-            </div>
-          </div>
-        </div>
-      </div>
+                  <button
+                    className="connect-btn"
+                    onClick={handleConnect}
+                    disabled={isConnecting}
+                  >
+                    {isConnecting
+                      ? <><span className="btn-spinner" /> <span>Connecting...</span></>
+                      : <><span>⭐</span> <span>Connect Freighter</span></>}
+                  </button>
 
-      {/* Card */}
-      <div className="landing-card">
-
-        {/* ── Step: Connect ── */}
-        {step === STEP.CONNECT && (
-          <>
-            <div className="card-section">
-              <h2>Connect Your Wallet</h2>
-              <p>
-                You need <strong>Freighter</strong> on <strong>Testnet</strong>.
-                You approve signatures when x402 payments are requested.
-              </p>
-
-              <button
-                className="btn btn-primary btn-large connect-btn"
-                onClick={handleConnect}
-                disabled={isConnecting}
-              >
-                {isConnecting
-                  ? <><span className="btn-spinner" /> Connecting...</>
-                  : <><span>⭐</span> Connect Freighter</>}
-              </button>
-
-              {error && (
-                <div className="connect-error">
-                  <span>⚠️</span>
-                  <span>{error}</span>
-                  {error.toLowerCase().includes('not found') && (
-                    <a href="https://freighter.app" target="_blank" rel="noopener noreferrer"
-                      className="install-link">Get Freighter →</a>
+                  {error && (
+                    <div className="connect-error">
+                      <span>⚠️</span>
+                      <span>{error}</span>
+                      {error.toLowerCase().includes('not found') && (
+                        <a href="https://freighter.app" target="_blank" rel="noopener noreferrer"
+                          className="install-link">Get Freighter →</a>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            <div className="card-divider" />
+                <div className="card-divider" />
 
-            <p className="testnet-note">
-              🧪 <strong>Stellar Testnet</strong> — get free XLM from{' '}
-              <a href="https://friendbot.stellar.org" target="_blank" rel="noopener noreferrer">
-                Friendbot ↗
-              </a>
-            </p>
-          </>
-        )}
+                <p className="testnet-note">
+                  🧪 <strong>Stellar Testnet</strong> — get free XLM from{' '}
+                  <a href="https://friendbot.stellar.org" target="_blank" rel="noopener noreferrer">
+                    Friendbot ↗
+                  </a>
+                </p>
+              </>
+            )}
 
-        {/* ── Step: Setup ── */}
-        {step === STEP.SETUP && (
-          <>
-            <div className="card-section">
-              <div className="wallet-connected">
-                <span className="wc-dot" />
-                <span className="wc-label">Wallet Connected</span>
-              </div>
-              <div className="wc-address">
-                {connectedAddress?.slice(0, 10)}...{connectedAddress?.slice(-8)}
-              </div>
-            </div>
-
-            <div className="card-divider" />
-
-            {/* Interests */}
-            <div className="card-section">
-              <h3>Your Reading Interests</h3>
-              <p>Used for feed personalization and future ranking features.</p>
-
-              <div className="interest-tags">
-                {INTEREST_SUGGESTIONS.map(tag => (
-                  <button
-                    key={tag}
-                    className={`interest-tag ${activeInterests.includes(tag.toLowerCase()) ? 'active' : ''}`}
-                    onClick={() => toggleInterest(tag)}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-
-              <input
-                className="interest-input"
-                type="text"
-                placeholder="Or type: Polygon, payments, Web3..."
-                value={interests}
-                onChange={e => setInterests(e.target.value)}
-              />
-            </div>
-
-            <div className="card-divider" />
-
-            {/* Budget */}
-            <div className="card-section">
-              <h3>Agent Budget</h3>
-              <p>Session cap for x402 spend. Price target is about $0.10 per 10 articles.</p>
-
-              <div className="budget-options">
-                {BUDGET_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    className={`budget-btn ${selectedBudget === opt.value ? 'selected' : ''}`}
-                    onClick={() => setSelectedBudget(opt.value)}
-                  >
-                    {opt.recommended && <span className="budget-recommended">Recommended</span>}
-                    <span className="budget-amount">{opt.label}</span>
-                    <span className="budget-desc">{opt.desc}</span>
-                  </button>
-                ))}
-              </div>
-
-              {fundingError && (
-                <div className="connect-error">
-                  <span>⚠️</span>
-                  <span>{fundingError}</span>
+            {/* ── Step: Setup ── */}
+            {step === STEP.SETUP && (
+              <>
+                <div className="card-section">
+                  <div className="wallet-connected">
+                    <span className="wc-dot" />
+                    <span className="wc-label">Wallet Connected</span>
+                  </div>
+                  <div className="wc-address">
+                    {connectedAddress?.slice(0, 10)}...{connectedAddress?.slice(-8)}
+                  </div>
                 </div>
-              )}
 
-              <button
-                className="btn btn-primary btn-large start-btn"
-                onClick={handleFundAndStart}
-                disabled={isFunding || !interests.trim()}
-              >
-                {isFunding
-                  ? <><span className="btn-spinner" /> Waiting for Freighter...</>
-                  : `Start Session (Budget $${selectedBudget}) →`}
-              </button>
+                <div className="card-divider" />
 
-              <p className="funding-note">
-                ⚡ Session budget is tracked in-app; wallet signatures still require approval per payment.
-              </p>
-            </div>
-          </>
-        )}
+                {/* Interests */}
+                <div className="card-section">
+                  <h3>Your Reading Interests</h3>
+                  <p>Used for feed personalization and future ranking features.</p>
 
-        {/* ── Step: Funding in progress ── */}
-        {step === STEP.FUNDING && (
-          <div className="card-section funding-progress">
-            <div className="funding-spinner">
-              <span className="btn-spinner large-spinner" />
-            </div>
-            <h3>Deploying AI Agent...</h3>
-            <p className="funding-status">{fundingStatus || 'Preparing...'}</p>
-            <p className="funding-sub">This creates a secure, ephemeral session wallet for autonomous background payments.</p>
+                  <div className="interest-tags">
+                    {INTEREST_SUGGESTIONS.map(tag => (
+                      <button
+                        key={tag}
+                        className={`interest-tag ${activeInterests.includes(tag.toLowerCase()) ? 'active' : ''}`}
+                        onClick={() => toggleInterest(tag)}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  <input
+                    className="interest-input"
+                    type="text"
+                    placeholder="Or type: Polygon, payments, Web3..."
+                    value={interests}
+                    onChange={e => setInterests(e.target.value)}
+                  />
+                </div>
+
+                <div className="card-divider" />
+
+                {/* Budget */}
+                <div className="card-section">
+                  <h3>Agent Budget</h3>
+                  <p>Session cap for x402 spend. Price target is about $0.10 per 10 articles.</p>
+
+                  <div className="budget-options">
+                    {BUDGET_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        className={`budget-btn ${selectedBudget === opt.value ? 'selected' : ''}`}
+                        onClick={() => setSelectedBudget(opt.value)}
+                      >
+                        {opt.recommended && <span className="budget-recommended">Recommended</span>}
+                        <span className="budget-amount">{opt.label}</span>
+                        <span className="budget-desc">{opt.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {fundingError && (
+                    <div className="connect-error">
+                      <span>⚠️</span>
+                      <span>{fundingError}</span>
+                    </div>
+                  )}
+
+                  <button
+                    className="start-btn"
+                    onClick={handleFundAndStart}
+                    disabled={isFunding || !interests.trim()}
+                  >
+                    {isFunding
+                      ? <><span className="btn-spinner" /> <span>Waiting for Freighter...</span></>
+                      : <span>{`Start Session (Budget $${selectedBudget}) →`}</span>}
+                  </button>
+
+                  <p className="funding-note">
+                    ⚡ Session budget is tracked in-app; wallet signatures still require approval per payment.
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* ── Step: Funding in progress ── */}
+            {step === STEP.FUNDING && (
+              <div className="card-section funding-progress">
+                <div className="funding-spinner">
+                  <span className="btn-spinner large-spinner" />
+                </div>
+                <h3>Deploying AI Agent...</h3>
+                <p className="funding-status">{fundingStatus || 'Preparing...'}</p>
+                <p className="funding-sub">This creates a secure, ephemeral session wallet for autonomous background payments.</p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Badges */}
-      <div className="tech-badges">
-        <span className="tech-badge">⭐ Stellar Testnet</span>
-        <span className="tech-badge">⚡ x402 Protocol</span>
-        <span className="tech-badge">🧠 Groq AI Agent</span>
-        <span className="tech-badge">🤖 Auto-triggered x402</span>
+        {/* Feature Cards */}
+        <div className="feature-section">
+          <h2 className="feature-title">Built With Cutting-Edge Technology</h2>
+          <div className="feature-grid">
+            <div className="feature-card">
+              <div className="feature-card-inner">
+                <span className="feature-icon">⚡</span>
+                <h4>x402 Protocol</h4>
+                <p>HTTP-native micropayments. The server returns 402 Payment Required, the agent signs & pays autonomously.</p>
+              </div>
+            </div>
+            <div className="feature-card">
+              <div className="feature-card-inner">
+                <span className="feature-icon">🧠</span>
+                <h4>Groq AI Inference</h4>
+                <p>On-demand article summarization and Web3 sector impact analysis powered by Llama 3.1 via Groq.</p>
+              </div>
+            </div>
+            <div className="feature-card">
+              <div className="feature-card-inner">
+                <span className="feature-icon">⭐</span>
+                <h4>Stellar Network</h4>
+                <p>USDC settlements on Stellar Testnet with Soroban smart contracts and sub-second finality.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="stats-row">
+          <div className="stat-card">
+            <div className="stat-card-inner">
+              <span className="stat-value">$0.10</span>
+              <span className="stat-label">Per Batch</span>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-card-inner">
+              <span className="stat-value">$0.05</span>
+              <span className="stat-label">Per Summary</span>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-card-inner">
+              <span className="stat-value">$0.02</span>
+              <span className="stat-label">Per Impact</span>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-card-inner">
+              <span className="stat-value">~2s</span>
+              <span className="stat-label">Settlement</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Badges */}
+        <div className="tech-badges">
+          <span className="tech-badge">⭐ Stellar Testnet</span>
+          <span className="tech-badge">⚡ x402 Protocol</span>
+          <span className="tech-badge">🧠 Groq AI Agent</span>
+          <span className="tech-badge">🤖 Auto-triggered x402</span>
+          <span className="tech-badge">💳 USDC Payments</span>
+          <span className="tech-badge">🔐 Soroban Contracts</span>
+        </div>
       </div>
     </div>
   );
