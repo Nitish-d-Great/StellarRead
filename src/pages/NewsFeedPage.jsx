@@ -14,19 +14,22 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
   const navigate = useNavigate();
   const stellarService = getStellarX402Service();
 
-  const [articles, setArticles]             = useState([]);
-  const [readIds, setReadIds]               = useState(new Set());
+  const [articles, setArticles] = useState([]);
+  const [readIds, setReadIds] = useState(new Set());
   const [isLoadingArticles, setIsLoadingArticles] = useState(false);
   const [isAgentWorking, setIsAgentWorking] = useState(false);
-  const [agentStatus, setAgentStatus]       = useState(null);
-  const [agentLog, setAgentLog]             = useState([]);
-  const [transactions, setTransactions]     = useState([]);
-  const [totalSpent, setTotalSpent]         = useState(0);
-  const [batchCount, setBatchCount]         = useState(0);
+  const [agentStatus, setAgentStatus] = useState(null);
+  const [agentLog, setAgentLog] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [batchCount, setBatchCount] = useState(0);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [budgetExhausted, setBudgetExhausted] = useState(false);
-  const [readingDigest, setReadingDigest]     = useState([]);
-  const [isSummarizing, setIsSummarizing]     = useState(false);
+  const [readingDigest, setReadingDigest] = useState([]);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+
+  const [impactDigests, setImpactDigests] = useState([]);
+  const [isImpacting, setIsImpacting] = useState(false);
 
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
   const toggleTheme = () => {
@@ -91,8 +94,10 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
     setIsAgentWorking(true);
 
     try {
-      setAgentStatus({ type: 'info', icon: '⚡',
-        message: 'Reading threshold met — requesting next batch (x402)...' });
+      setAgentStatus({
+        type: 'info', icon: '⚡',
+        message: 'Reading threshold met — requesting next batch (x402)...'
+      });
 
       logAgent({
         type: 'fetch',
@@ -108,8 +113,10 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
       setTotalSpent(stellarService.totalSpent);
       setBatchCount(stellarService.batchCount);
 
-      setAgentStatus({ type: 'success', icon: '✅',
-        message: `Batch #${txRecord.batch} settled — ${newArticles.length} articles added.` });
+      setAgentStatus({
+        type: 'success', icon: '✅',
+        message: `Batch #${txRecord.batch} settled — ${newArticles.length} articles added.`
+      });
 
       logAgent({
         type: 'success',
@@ -133,22 +140,30 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
       console.error('Agent error:', err.message);
 
       if (err.message === 'SESSION_NOT_FUNDED') {
-        setAgentStatus({ type: 'error', icon: '💳',
-          message: 'Session wallet not funded. Please restart and approve the funding transaction.' });
+        setAgentStatus({
+          type: 'error', icon: '💳',
+          message: 'Session wallet not funded. Please restart and approve the funding transaction.'
+        });
       } else if (err.message === 'SESSION_WALLET_EMPTY') {
         setBudgetExhausted(true);
-        setAgentStatus({ type: 'error', icon: '💸',
-          message: 'Session wallet is empty. Start a new session to refund.' });
+        setAgentStatus({
+          type: 'error', icon: '💸',
+          message: 'Session wallet is empty. Start a new session to refund.'
+        });
       } else if (err.message === 'SESSION_BUDGET_EXHAUSTED') {
         setBudgetExhausted(true);
         setAgentStatus({ type: 'error', icon: '🛑', message: 'Budget exhausted.' });
       } else if (err.message === 'BACKEND_UNAVAILABLE') {
         setArticles(demoArticles);
-        setAgentStatus({ type: 'error', icon: '⚠️',
-          message: 'Backend unavailable — showing demo articles.' });
+        setAgentStatus({
+          type: 'error', icon: '⚠️',
+          message: 'Backend unavailable — showing demo articles.'
+        });
       } else if (err.message?.startsWith('PAYMENT_REJECTED:')) {
-        setAgentStatus({ type: 'error', icon: '✗',
-          message: `Payment rejected: ${err.message.replace('PAYMENT_REJECTED:', '').trim()}` });
+        setAgentStatus({
+          type: 'error', icon: '✗',
+          message: `Payment rejected: ${err.message.replace('PAYMENT_REJECTED:', '').trim()}`
+        });
       } else {
         setAgentStatus({ type: 'error', icon: '⚠️', message: `Error: ${err.message}` });
       }
@@ -213,11 +228,11 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
 
     try {
       const { summary } = await stellarService.payForSummary(selectedArticle.title, selectedArticle.content);
-      
+
       setReadingDigest(prev => [...prev, { title: selectedArticle.title, summary }]);
       setTransactions(stellarService.getSessionSummary().transactions);
       setTotalSpent(stellarService.totalSpent);
-      
+
       setAgentStatus({ type: 'success', icon: '✨', message: 'Summary generated & safely paywalled for $0.05 USDC.' });
       setTimeout(() => setAgentStatus(null), 4000);
     } catch (err) {
@@ -225,6 +240,28 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
       setAgentStatus({ type: 'error', icon: '⚠️', message: `Summary failed: ${err.message}` });
     } finally {
       setIsSummarizing(false);
+    }
+  };
+
+  const handleImpact = async () => {
+    if (!selectedArticle) return;
+    setIsImpacting(true);
+    setAgentStatus({ type: 'info', icon: '🤖', message: 'Agent negotiating x402 payment for Groq impact analysis...' });
+
+    try {
+      const { impact } = await stellarService.payForImpact(selectedArticle.title, selectedArticle.content);
+
+      setImpactDigests(prev => [...prev, { title: selectedArticle.title, impact }]);
+      setTransactions(stellarService.getSessionSummary().transactions);
+      setTotalSpent(stellarService.totalSpent);
+
+      setAgentStatus({ type: 'success', icon: '✨', message: 'Impact Analysis generated & safely paywalled for $0.02 USDC.' });
+      setTimeout(() => setAgentStatus(null), 4000);
+    } catch (err) {
+      console.error('Impact error:', err.message);
+      setAgentStatus({ type: 'error', icon: '⚠️', message: `Impact Analysis failed: ${err.message}` });
+    } finally {
+      setIsImpacting(false);
     }
   };
 
@@ -245,6 +282,7 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
             articlesRead={readIds.size}
             totalBatches={batchCount}
             totalSummaries={readingDigest.length}
+            totalImpacts={impactDigests.length}
             totalSpent={totalSpent}
             budgetXLM={sessionBudget}
             remainingBudget={parseFloat(stellarService.getRemainingBudget())}
@@ -369,7 +407,7 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
 
         <aside className="digest-sidebar">
           <div className="digest-header">
-            <span style={{fontSize: '1.5rem'}}>🧠</span>
+            <span style={{ fontSize: '1.5rem' }}>🧠</span>
             <h3>Reading Digest</h3>
           </div>
           {readingDigest.length === 0 ? (
@@ -382,6 +420,27 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
                 <div className="digest-item" key={idx}>
                   <h4 className="digest-title">{item.title}</h4>
                   <p className="digest-summary">{item.summary}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+
+        <aside className="digest-sidebar impact-sidebar">
+          <div className="digest-header">
+            <span style={{ fontSize: '1.5rem' }}>⚡</span>
+            <h3>Impact Analysis</h3>
+          </div>
+          {impactDigests.length === 0 ? (
+            <div className="digest-empty">
+              Open an article and ask the Agent for a sector impact analysis.
+            </div>
+          ) : (
+            <div className="digest-list">
+              {impactDigests.map((item, idx) => (
+                <div className="digest-item" key={idx}>
+                  <h4 className="digest-title">{item.title}</h4>
+                  <p className="digest-summary">{item.impact}</p>
                 </div>
               ))}
             </div>
@@ -415,17 +474,31 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
                   Read full article on {selectedArticle.source} ↗
                 </a>
               )}
-              <button 
-                className="summarize-btn" 
+              <button
+                className="summarize-btn"
                 onClick={handleSummarize}
                 disabled={isSummarizing || readingDigest.some(d => d.title === selectedArticle.title)}
               >
                 {isSummarizing ? (
-                  <><span className="al-spinner"/> Negotiating paid compute...</>
+                  <><span className="al-spinner" /> Negotiating paid compute...</>
                 ) : readingDigest.some(d => d.title === selectedArticle.title) ? (
                   <>✓ Summarized</>
                 ) : (
                   <>✨ Ask Agent to Summarize (0.05 USDC)</>
+                )}
+              </button>
+              <button
+                className="summarize-btn impact-btn"
+                onClick={handleImpact}
+                disabled={isImpacting || impactDigests.some(d => d.title === selectedArticle.title)}
+                style={{ marginTop: '0.75rem', backgroundImage: 'linear-gradient(135deg, var(--accent-green) 0%, #10b981 100%)' }}
+              >
+                {isImpacting ? (
+                  <><span className="al-spinner" /> Negotiating paid compute...</>
+                ) : impactDigests.some(d => d.title === selectedArticle.title) ? (
+                  <>✓ Impact Analyzed</>
+                ) : (
+                  <>⚡ Analyze Sector Impact (0.02 USDC)</>
                 )}
               </button>
               <div className="modal-paid-badge">

@@ -118,6 +118,16 @@ export async function getX402() {
       description: 'Groq AI Article Summarization Compute',
       mimeType: 'application/json',
     },
+    'POST /api/chat/impact': {
+      accepts: {
+        scheme: 'exact',
+        network,
+        payTo,
+        price: '0.02',
+      },
+      description: 'Groq AI Web3 Impact Analysis Compute',
+      mimeType: 'application/json',
+    },
   };
 
   const httpServer = new x402HTTPResourceServer(resourceServer, routes);

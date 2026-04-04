@@ -1,7 +1,7 @@
 import React from 'react';
 import './BillingCounter.css';
 
-const BillingCounter = ({ articlesRead, totalBatches, totalSummaries, totalSpent, budgetXLM, remainingBudget }) => {
+const BillingCounter = ({ articlesRead, totalBatches, totalSummaries, totalImpacts, totalSpent, budgetXLM, remainingBudget }) => {
   const budgetPct = budgetXLM > 0
     ? Math.min(((totalSpent || 0) / budgetXLM) * 100, 100)
     : 0;
@@ -15,7 +15,7 @@ const BillingCounter = ({ articlesRead, totalBatches, totalSummaries, totalSpent
 
       <div className="bc-stats">
         <div className="bc-stat">
-          <span className="bc-stat-label">Articles Read</span>
+          <span className="bc-stat-label">Articles</span>
           <span className="bc-stat-val articles">{articlesRead}</span>
         </div>
         <div className="bc-divider" />
@@ -30,7 +30,12 @@ const BillingCounter = ({ articlesRead, totalBatches, totalSummaries, totalSpent
         </div>
         <div className="bc-divider" />
         <div className="bc-stat">
-          <span className="bc-stat-label">Spent (USD est.)</span>
+          <span className="bc-stat-label">Impacts</span>
+          <span className="bc-stat-val batches">{totalImpacts || 0}</span>
+        </div>
+        <div className="bc-divider" />
+        <div className="bc-stat">
+          <span className="bc-stat-label">Spent</span>
           <span className="bc-stat-val cost">{(totalSpent || 0).toFixed(2)}</span>
         </div>
       </div>
@@ -57,7 +62,7 @@ const BillingCounter = ({ articlesRead, totalBatches, totalSummaries, totalSpent
 
       <div className="bc-rate">
         <span>Rates</span>
-        <span>$0.10/batch · $0.05/summary</span>
+        <span>$0.10/batch · $0.05/sum · $0.02/impact</span>
       </div>
 
       <div className="bc-network">

@@ -261,10 +261,110 @@ class StellarX402Service {
 
     const txHash = settlement.transaction;
     
-    // Deduct exact amount (0.05 USDC)
+    const txRecord = {
+      type: 'summary',
+      title: title.slice(0, 30) + '...',
+      network: settlement.network,
+      transaction: txHash,
+      hash: txHash,
+      payer: settlement.payer,
+      timestamp: new Date().toISOString(),
+      status: settlement.success ? 'confirmed' : 'failed',
+      scheme: 'exact',
+      asset: paymentRequired?.accepts?.[0]?.asset,
+      amount: '0.05',
+      explorerUrl: txHash
+        ? `https://stellar.expert/explorer/testnet/tx/${txHash}`
+        : null,
+    };
+    this.transactions.push(txRecord);
     this.totalSpent += 0.05;
 
     return { txHash, summary: data.summary };
+  }
+
+  async payForImpact(title, content) {
+    if (!this.isInitialized) throw new Error('Service not initialized');
+    if (!this.agentSecret) throw new Error('SESSION_NOT_FUNDED');
+    if (!this.hasBudget(0.02)) throw new Error('Insufficient Agent Budget. Please restart session.');
+
+    const signer = createEd25519Signer(this.agentSecret, CONFIG.STELLAR_NETWORK_CAIP2);
+    const core = new x402Client().register(
+      'stellar:*',
+      new ExactStellarScheme(signer, CONFIG.STELLAR_RPC_URL ? { url: CONFIG.STELLAR_RPC_URL } : undefined),
+    );
+    const httpClient = new x402HTTPClient(core);
+
+    const payload = { title, content };
+
+    // 1) Unpaid request to get PAYMENT-REQUIRED
+    const first = await fetch(`${CONFIG.BACKEND_URL}/api/chat/impact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (first.status !== 402) {
+      if (!first.ok) throw new Error(`Backend error: ${first.status}`);
+      const data = await first.json();
+      throw new Error(`Expected 402 PAYMENT-REQUIRED, got 200`);
+    }
+
+    const paymentRequired = httpClient.getPaymentRequiredResponse(
+      (name) => first.headers.get(name),
+      await first.json().catch(() => ({})),
+    );
+
+    // 2) Build + sign Soroban transfer
+    let paymentPayload;
+    try {
+      paymentPayload = await httpClient.createPaymentPayload(paymentRequired);
+    } catch (e) {
+      throw new Error(`Impact Payment Error: ${formatX402PaymentBuildError(e)}`);
+    }
+
+    // 3) Retry request with PAYMENT-SIGNATURE
+    const paid = await fetch(`${CONFIG.BACKEND_URL}/api/chat/impact`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...httpClient.encodePaymentSignatureHeader(paymentPayload),
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!paid.ok) {
+      const err = await paid.json().catch(() => ({}));
+      throw new Error(`IMPACT_PAYMENT_REJECTED: ${err?.error || err?.message || paid.status}`);
+    }
+
+    const settlement = httpClient.getPaymentSettleResponse((name) => paid.headers.get(name));
+    const data = await paid.json();
+
+    const txHash = settlement.transaction;
+    
+    const txRecord = {
+      type: 'impact',
+      title: title.slice(0, 30) + '...',
+      network: settlement.network,
+      transaction: txHash,
+      hash: txHash,
+      payer: settlement.payer,
+      timestamp: new Date().toISOString(),
+      status: settlement.success ? 'confirmed' : 'failed',
+      scheme: 'exact',
+      asset: paymentRequired?.accepts?.[0]?.asset,
+      amount: '0.02',
+      explorerUrl: txHash
+        ? `https://stellar.expert/explorer/testnet/tx/${txHash}`
+        : null,
+    };
+    this.transactions.push(txRecord);
+
+    // Deduct exact amount (0.02 USDC)
+    this.totalSpent += 0.02;
+
+    return { txHash, impact: data.impact };
   }
 
   getSessionSummary() {
