@@ -91,7 +91,7 @@ const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
                 <div key={tx.hash} className="ctx-item">
                   <div className="ctx-top">
                     <span className="ctx-batch">Batch #{tx.batch}</span>
-                    <span className="ctx-amount">{tx.amount} token units</span>
+                    <span className="ctx-amount">{tx.amount} USDC</span>
                     <span className="ctx-status">✓ Confirmed</span>
                   </div>
                   <div className="ctx-hash">

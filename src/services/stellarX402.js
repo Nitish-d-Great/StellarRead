@@ -185,7 +185,14 @@ class StellarX402Service {
       status: settlement.success ? 'confirmed' : 'failed',
       scheme: 'exact',
       asset: paymentRequired?.accepts?.[0]?.asset,
-      amount: paymentRequired?.accepts?.[0]?.amount,
+      amount: (() => {
+        const raw = paymentRequired?.accepts?.[0]?.amount;
+        if (!raw) return String(CONFIG.PRICE_PER_BATCH_USD);
+        const num = Number(raw);
+        // x402 exact scheme on Stellar returns stroops (7 decimals for USDC)
+        if (Number.isFinite(num) && num > 1000) return (num / 1e7).toFixed(2);
+        return String(raw);
+      })(),
       explorerUrl: txHash
         ? `https://stellar.expert/explorer/testnet/tx/${txHash}`
         : null,
