@@ -220,7 +220,7 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
             <span className="nav-badge">x402</span>
           </div>
           <div className="nav-links">
-            <span className="nav-link">How It Works</span>
+            <a href="https://medium.com/@nit.nitish02/stellarread-how-it-works-ad53958b616b" target="_blank" rel="noopener noreferrer" className="nav-link">How It Works</a>
             <span className="nav-link">Technology</span>
             <a href="https://github.com/Nitish-d-Great/StellarRead" target="_blank" rel="noopener noreferrer" className="nav-link">GitHub</a>
           </div>
