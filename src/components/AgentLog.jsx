@@ -73,8 +73,10 @@ const AgentLog = ({ transactions, isAgentWorking, agentStatus, agentLog = [] }) 
             return (
             <div key={h} className="al-tx animate-fadeIn">
               <div className="al-tx-top">
-                <span className="al-tx-batch">Batch #{tx.batch}</span>
-                <span className="al-tx-amount">x402</span>
+                <span className="al-tx-batch">
+                  {tx.batch ? `Batch #${tx.batch}` : tx.type ? `${tx.type.charAt(0).toUpperCase() + tx.type.slice(1)} Payment` : 'Payment'}
+                </span>
+                <span className="al-tx-amount">{tx.amount ? `$${tx.amount}` : 'x402'}</span>
               </div>
               <div className="al-tx-hash">
                 <span className="al-tx-label">Tx</span>

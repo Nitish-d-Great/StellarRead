@@ -46,6 +46,11 @@ export async function getX402() {
     throw new Error('PUBLISHER_ADDRESS is required for x402 payTo');
   }
 
+  const authorAddress = process.env.AUTHOR_WALLET_ADDRESS;
+  if (!authorAddress) {
+    throw new Error('AUTHOR_WALLET_ADDRESS is required for tips');
+  }
+
   const rpcUrl = process.env.STELLAR_RPC_URL;
   const rpcConfig = rpcUrl ? { url: rpcUrl } : undefined;
 
@@ -126,6 +131,16 @@ export async function getX402() {
         price: '0.02',
       },
       description: 'Groq AI Web3 Impact Analysis Compute',
+      mimeType: 'application/json',
+    },
+    'POST /api/chat/tip': {
+      accepts: {
+        scheme: 'exact',
+        network,
+        payTo: authorAddress,
+        price: '0.01',
+      },
+      description: 'Tip author payment',
       mimeType: 'application/json',
     },
   };

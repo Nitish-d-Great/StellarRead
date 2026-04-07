@@ -48,7 +48,7 @@
   justify-content: center;
   font-size: 1.5rem;
   font-weight: 700;
-  box-shadow: 0 4px 14px rgba(16,185,129,0.35);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
 }
 
 .conf-header h1 {
@@ -252,7 +252,9 @@
   gap: 0.875rem;
 }
 
-.conf-actions .btn { flex: 1; }
+.conf-actions .btn {
+  flex: 1;
+}
 
 /* Hackathon note */
 .conf-hackathon {
@@ -266,6 +268,11 @@
 }
 
 @media (max-width: 500px) {
-  .conf-stats { grid-template-columns: repeat(2, 1fr); }
-  .conf-actions { flex-direction: column; }
+  .conf-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .conf-actions {
+    flex-direction: column;
+  }
 }

@@ -73,29 +73,29 @@ Traditional content monetization is broken:
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         USER'S BROWSER                              │
 │                                                                     │
-│  ┌──────────┐   ┌──────────────┐   ┌──────────────────────────┐    │
+│  ┌──────────-┐   ┌──────────────┐   ┌──────────────────────────┐    │
 │  │ Freighter │   │  React App   │   │  StellarX402 Service     │    │
-│  │  Wallet   │◄──│  (Vite/JSX)  │──►│  (x402 Client + Signer) │    │
-│  └──────────┘   └──────────────┘   └───────────┬──────────────┘    │
+│  │  Wallet   │◄──│  (Vite/JSX)  │──►│  (x402 Client + Signer)  │    │
+│  └──────────-┘   └──────────────┘   └───────────┬──────────────┘    │
 │                                                 │                   │
 └─────────────────────────────────────────────────┼───────────────────┘
                                                   │
                         HTTP (x402 headers)       │
                                                   ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                       EXPRESS BACKEND                                │
+│                       EXPRESS BACKEND                               │
 │                                                                     │
-│  ┌──────────────┐   ┌──────────────┐   ┌───────────────────────┐   │
-│  │ x402 HTTP    │   │ News API     │   │ Groq AI Service       │   │
-│  │ Resource     │   │ Aggregator   │   │ (Llama 3.1 8B)        │   │
-│  │ Server       │   │ (Multi-src)  │   │                       │   │
-│  └──────┬───────┘   └──────────────┘   └───────────────────────┘   │
+│  ┌──────────────┐   ┌──────────────┐   ┌───────────────────────┐    │
+│  │ x402 HTTP    │   │ News API     │   │ Groq AI Service       │    │
+│  │ Resource     │   │ Aggregator   │   │ (Llama 3.1 8B)        │    │
+│  │ Server       │   │ (Multi-src)  │   │                       │    │
+│  └──────┬───────┘   └──────────────┘   └───────────────────────┘    │
 │         │                                                           │
 └─────────┼───────────────────────────────────────────────────────────┘
           │
           ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    FACILITATOR LAYER                                 │
+│                    FACILITATOR LAYER                                │
 │                                                                     │
 │  ┌─────────────────────────────────────────────────────────────┐    │
 │  │  OpenZeppelin Channels (HTTP Facilitator)                   │    │
@@ -114,10 +114,10 @@ Traditional content monetization is broken:
 ┌─────────────────────────────────────────────────────────────────────┐
 │                  STELLAR BLOCKCHAIN (Testnet)                       │
 │                                                                     │
-│  ┌─────────────┐   ┌──────────────────┐   ┌──────────────────┐    │
-│  │  Soroban    │   │  USDC Token      │   │  Horizon API     │    │
-│  │  Runtime    │   │  (SEP-41)        │   │  (Query/Submit)  │    │
-│  └─────────────┘   └──────────────────┘   └──────────────────┘    │
+│  ┌─────────────┐   ┌──────────────────┐   ┌──────────────────┐      │
+│  │  Soroban    │   │  USDC Token      │   │  Horizon API     │      │
+│  │  Runtime    │   │  (SEP-41)        │   │  (Query/Submit)  │      │
+│  └─────────────┘   └──────────────────┘   └──────────────────┘      │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -251,7 +251,7 @@ The user's Freighter wallet only signs ONE transaction — the initial funding. 
 This is where the x402 magic happens. The flow is entirely event-driven:
 
 ```
-┌────────────────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────-────────────┐
 │                    READING LOOP                                 │
 │                                                                 │
 │  1. Load free batch (10 articles, no payment)                   │
@@ -281,11 +281,11 @@ This is where the x402 magic happens. The flow is entirely event-driven:
 │  │    ├─ Update transactions list        │                      │
 │  │    └─ Log decision in Agent Log       │                      │
 │  │                                       │                      │
-│  │  NO → Wait for more reads            │                      │
+│  │  NO → Wait for more reads             │                      │
 │  └───────────────────────────────────────┘                      │
 │                                                                 │
 │  5. Repeat until budget exhausted                               │
-└────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────-────────────────────┘
 ```
 
 **The 80% Threshold Logic:**
@@ -353,30 +353,30 @@ When the user clicks "End Session", the app navigates to the Confirmation page w
 
 ```
 ┌──────────────────────────────────────────────────┐
-│               SESSION COMPLETE ✓                  │
-│                                                   │
-│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐        │
-│  │  8   │  │  1   │  │ 0.17 │  │ 0.33 │        │
-│  │ARTICLES│ │BATCHES│ │ SPENT │  │REMAIN│        │
-│  │ READ │  │ PAID │  │(USD) │  │(USD) │         │
-│  └──────┘  └──────┘  └──────┘  └──────┘        │
-│                                                   │
-│  Stellar Transactions:                            │
+│               SESSION COMPLETE ✓                 │
+│                                                  │
+│  ┌──────--┐  ┌────-──┐  ┌──────┐  ┌──────┐       │
+│  │  8     │  │  1    │  │ 0.17 │  │ 0.33 │       │
+│  │ARTICLES│  │BATCHES│  │SPENT │  │REMAIN│       │
+│  │ READ   │  │ PAID  │  │(USD) │  │(USD) │       │
+│  └──────--┘  └──────-┘  └──────┘  └──────┘       │
+│                                                  │
+│  Stellar Transactions:                           │
 │  ┌─────────────────────────────────────────┐     │
-│  │ Batch #1  0.10 USDC  ✓ Confirmed       │     │
-│  │ Tx: c9ea0...5b72  → Stellar Explorer ↗ │     │
-│  │ 05/04/2026, 14:18:29                   │     │
+│  │ Batch #1  0.10 USDC  ✓ Confirmed        │     │
+│  │ Tx: c9ea0...5b72  → Stellar Explorer ↗  │     │
+│  │ 05/04/2026, 14:18:29                    │     │
 │  ├─────────────────────────────────────────┤     │
-│  │ Batch #2  0.05 USDC  ✓ Confirmed       │     │
-│  │ Tx: d0b4b...aba9  → Stellar Explorer ↗ │     │
-│  │ 05/04/2026, 14:18:43                   │     │
+│  │ Batch #2  0.05 USDC  ✓ Confirmed        │     │
+│  │ Tx: d0b4b...aba9  → Stellar Explorer ↗  │     │
+│  │ 05/04/2026, 14:18:43                    │     │
 │  ├─────────────────────────────────────────┤     │
-│  │ Batch #3  0.02 USDC  ✓ Confirmed       │     │
-│  │ Tx: f3270...4baa  → Stellar Explorer ↗ │     │
+│  │ Batch #3  0.02 USDC  ✓ Confirmed        │     │
+│  │ Tx: f3270...4baa  → Stellar Explorer ↗  │     │
 │  └─────────────────────────────────────────┘     │
-│                                                   │
-│  Every transaction is independently verifiable    │
-│  on the Stellar public ledger.                    │
+│                                                  │
+│  Every transaction is independently verifiable   │
+│  on the Stellar public ledger.                   │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -578,28 +578,28 @@ The **Facilitator** is a critical x402 concept. It's the entity that bridges bet
 In production mode, StellarRead uses **OpenZeppelin Channels** as the facilitator:
 
 ```
-Client signs auth entry
-        │
-        ▼
-Server receives PAYMENT-SIGNATURE
-        │
-        ▼
-HTTPFacilitatorClient.verify(payload, requirements)
-        │   POST https://channels.openzeppelin.com/x402/testnet/verify
-        │   → Validates signature, checks payer balance
-        │
-        ▼
-HTTPFacilitatorClient.settle(payload, requirements)
-        │   POST https://channels.openzeppelin.com/x402/testnet/settle
-        │   → Facilitator constructs Soroban transaction
-        │   → Wraps client's auth entry into full tx envelope
-        │   → Sponsors fees (client pays NO gas/fees)
-        │   → Submits to Stellar network
-        │   → Returns { transaction, payer, network, success }
-        │
-        ▼
-Server receives settlement proof
-Server serves content + PAYMENT-RESPONSE headers
+  Client signs auth entry
+          │
+          ▼
+  Server receives PAYMENT-SIGNATURE
+          │
+          ▼
+  HTTPFacilitatorClient.verify(payload, requirements)
+          │   POST https://channels.openzeppelin.com/x402/testnet/verify
+          │   → Validates signature, checks payer balance
+          │
+          ▼
+  HTTPFacilitatorClient.settle(payload, requirements)
+          │   POST https://channels.openzeppelin.com/x402/testnet/settle
+          │   → Facilitator constructs Soroban transaction
+          │   → Wraps client's auth entry into full tx envelope
+          │   → Sponsors fees (client pays NO gas/fees)
+          │   → Submits to Stellar network
+          │   → Returns { transaction, payer, network, success }
+          │
+          ▼
+  Server receives settlement proof
+  Server serves content + PAYMENT-RESPONSE headers
 ```
 
 **Why a facilitator?** Two reasons:

@@ -77,16 +77,16 @@ StellarRead integrates 15+ technologies across 4 layers:
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  PRESENTATION LAYER                                                 │
-│  React 18 · Vite 5 · React Router 6 · Vanilla CSS · Freighter API │
+│  React 18 · Vite 5 · React Router 6 · Vanilla CSS · Freighter API   │
 ├─────────────────────────────────────────────────────────────────────┤
 │  APPLICATION LAYER                                                  │
-│  Express.js · Groq SDK · Node Fetch · CORS · dotenv                │
+│  Express.js · Groq SDK · Node Fetch · CORS · dotenv                 │
 ├─────────────────────────────────────────────────────────────────────┤
 │  PROTOCOL LAYER                                                     │
-│  x402 Protocol (v2) · @x402/core · @x402/stellar · HTTP Headers   │
+│  x402 Protocol (v2) · @x402/core · @x402/stellar · HTTP Headers     │
 ├─────────────────────────────────────────────────────────────────────┤
 │  SETTLEMENT LAYER                                                   │
-│  Stellar Network · Soroban · USDC (SEP-41) · Horizon · SCP        │
+│  Stellar Network · Soroban · USDC (SEP-41) · Horizon · SCP          │
 │  OpenZeppelin Channels (Facilitator)                                │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -431,21 +431,21 @@ The authorization entry is essentially a signed "permission slip" that says: *"I
 This is the core cryptographic primitive that makes x402 work on Stellar:
 
 ```
-┌─────────────────────────────────────────────────┐
+┌───────────────────────────────────────────────-──┐
 │            SOROBAN AUTH ENTRY                    │
 │                                                  │
 │  Contract: USDC SEP-41 Token                     │
 │  Function: transfer                              │
 │  Args:                                           │
 │    from:   G_AGENT_WALLET... (agent's address)   │
-│    to:     G_PUBLISHER...    (content publisher)  │
-│    amount: 1000000           (0.10 USDC)          │
+│    to:     G_PUBLISHER...    (content publisher) │
+│    amount: 1000000           (0.10 USDC)         │
 │                                                  │
 │  Signature: Ed25519(agent_secret, entry_hash)    │
 │                                                  │
 │  Note: This is NOT a full transaction.           │
 │  The facilitator wraps it into a Soroban tx.     │
-└─────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────-┘
 ```
 
 **Why auth entries instead of full transactions?**
@@ -741,40 +741,40 @@ The agent's "brain" is a simple but effective algorithm:
 
 ```
                   ┌───────────────────────────┐
-                  │   React useEffect          │
-                  │   watches: readIds,        │
-                  │   articles.length          │
+                  │   React useEffect         │
+                  │   watches: readIds,       │
+                  │   articles.length         │
                   └─────────────┬─────────────┘
                                 │
                                 ▼
                   ┌───────────────────────────┐
-                  │ readRatio = read / total   │
+                  │ readRatio = read / total  │
                   │                           │
                   │ read = 0?                 │─── YES ──→ WAIT
-                  │   (user hasn't started)    │
+                  │   (user hasn't started)   │
                   └─────────────┬─────────────┘
                                 │ NO
                                 ▼
                   ┌───────────────────────────┐
-                  │ readRatio >= 0.80?         │
-                  │ OR unread/total <= 0.20?   │─── NO ──→ WAIT
+                  │ readRatio >= 0.80?        │
+                  │ OR unread/total <= 0.20?  │─── NO ──→ WAIT
                   └─────────────┬─────────────┘
                                 │ YES
                                 ▼
                   ┌───────────────────────────┐
-                  │ Debounce: 5 seconds since  │
-                  │ last trigger?              │─── NO ──→ WAIT
+                  │ Debounce: 5 seconds since │
+                  │ last trigger?             │─── NO ──→ WAIT
                   └─────────────┬─────────────┘
                                 │ YES
                                 ▼
                   ┌───────────────────────────┐
-                  │ agentRunning = false?      │─── NO ──→ WAIT
-                  │ (not already fetching)     │
+                  │ agentRunning = false?     │─── NO ──→ WAIT
+                  │ (not already fetching)    │
                   └─────────────┬─────────────┘
                                 │ YES
                                 ▼
                   ┌───────────────────────────┐
-                  │ hasBudget()?               │─── NO ──→ BUDGET
+                  │ hasBudget()?              │─── NO ──→ BUDGET
                   │ (can afford 0.10 USDC)    │          EXHAUSTED
                   └─────────────┬─────────────┘
                                 │ YES
@@ -881,14 +881,14 @@ User clicks "Ask Agent to Summarize"
          │
          ▼
 ┌─────────────────────────────────────────┐
-│  x402 Payment Gate                       │
+│  x402 Payment Gate                      │
 │  POST /api/chat/summarize               │
-│  Price: 0.05 USDC                        │
-│  Settlement: Soroban USDC transfer       │
+│  Price: 0.05 USDC                       │
+│  Settlement: Soroban USDC transfer      │
 └─────────────┬───────────────────────────┘
               │ (payment settled)
               ▼
-┌─────────────────────────────────────────┐
+┌───────────────────────────────────────-──┐
 │  Groq API Call                           │
 │                                          │
 │  System Prompt:                          │
@@ -904,8 +904,8 @@ User clicks "Ask Agent to Summarize"
 │   Content: {first 3000 chars}..."        │
 │                                          │
 │  Temperature: 0.3                        │
-│  Model: llama-3.1-8b-instant            │
-└─────────────┬───────────────────────────┘
+│  Model: llama-3.1-8b-instant             │
+└─────────────┬───────────────────────────-┘
               │
               ▼
          Summary returned
@@ -919,14 +919,14 @@ User clicks "Analyze Sector Impact"
          │
          ▼
 ┌─────────────────────────────────────────┐
-│  x402 Payment Gate                       │
+│  x402 Payment Gate                      │
 │  POST /api/chat/impact                  │
-│  Price: 0.02 USDC                        │
-│  Settlement: Soroban USDC transfer       │
+│  Price: 0.02 USDC                       │
+│  Settlement: Soroban USDC transfer      │
 └─────────────┬───────────────────────────┘
               │ (payment settled)
               ▼
-┌─────────────────────────────────────────┐
+┌─────────────────────────────────────-────┐
 │  Groq API Call                           │
 │                                          │
 │  System Prompt:                          │
@@ -943,8 +943,8 @@ User clicks "Analyze Sector Impact"
 │   Content: {first 3000 chars}..."        │
 │                                          │
 │  Temperature: 0.3                        │
-│  Model: llama-3.1-8b-instant            │
-└─────────────┬───────────────────────────┘
+│  Model: llama-3.1-8b-instant             │
+└─────────────┬──────────────────────────-─┘
               │
               ▼
          Impact analysis returned
@@ -1248,18 +1248,18 @@ FRONTEND_URL=https://stellarread.vercel.app
 
 ```
 ┌──────────────────────────────────────┐
-│  Vercel Edge Network                  │
+│  Vercel Edge Network                 │
 │                                      │
 │  stellarread.vercel.app              │
 │                                      │
-│  ├── index.html (SPA entry)         │
-│  ├── assets/                        │
-│  │   ├── index-[hash].js           │
-│  │   └── index-[hash].css          │
-│  └── Env vars:                      │
-│      VITE_BACKEND_URL               │
-│      VITE_STELLAR_NETWORK_CAIP2     │
-│      VITE_PRICE_PER_BATCH_USD       │
+│  ├── index.html (SPA entry)          │
+│  ├── assets/                         │
+│  │   ├── index-[hash].js             │
+│  │   └── index-[hash].css            │
+│  └── Env vars:                       │
+│      VITE_BACKEND_URL                │
+│      VITE_STELLAR_NETWORK_CAIP2      │ 
+│      VITE_PRICE_PER_BATCH_USD        │
 └──────────────────────────────────────┘
 ```
 
@@ -1267,7 +1267,7 @@ FRONTEND_URL=https://stellarread.vercel.app
 
 ```
 ┌──────────────────────────────────────┐
-│  Cloud Container                      │
+│  Cloud Container                     │
 │                                      │
 │  stellarread-server.onrender.com     │
 │                                      │

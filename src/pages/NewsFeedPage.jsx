@@ -31,6 +31,8 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
   const [impactDigests, setImpactDigests] = useState([]);
   const [isImpacting, setIsImpacting] = useState(false);
 
+  const [isTipping, setIsTipping] = useState(false);
+
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
   const toggleTheme = () => {
     if (isDark) {
@@ -262,6 +264,37 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
       setAgentStatus({ type: 'error', icon: '⚠️', message: `Impact Analysis failed: ${err.message}` });
     } finally {
       setIsImpacting(false);
+    }
+  };
+
+  const handleTip = async () => {
+    if (!selectedArticle) return;
+    
+    const TIP_AMOUNT = '0.01';
+    const remBudget = parseFloat(stellarService.getRemainingBudget());
+    
+    if (parseFloat(TIP_AMOUNT) > remBudget) {
+      setAgentStatus({ type: 'error', icon: '⚠️', message: 'Insufficient budget to tip. Start a new session to refund.' });
+      setTimeout(() => setAgentStatus(null), 4000);
+      return;
+    }
+
+    setIsTipping(true);
+    setAgentStatus({ type: 'info', icon: '🤖', message: `Agent negotiating x402 payment to tip author 0.01 USDC...` });
+
+    try {
+      await stellarService.payForTip(selectedArticle.title, TIP_AMOUNT);
+
+      setTransactions(stellarService.getSessionSummary().transactions);
+      setTotalSpent(stellarService.totalSpent);
+
+      setAgentStatus({ type: 'success', icon: '✨', message: `Successfully tipped author 0.01 USDC via x402!` });
+      setTimeout(() => setAgentStatus(null), 4000);
+    } catch (err) {
+      console.error('Tip error:', err.message);
+      setAgentStatus({ type: 'error', icon: '⚠️', message: `Tipping failed: ${err.message}` });
+    } finally {
+      setIsTipping(false);
     }
   };
 
@@ -499,6 +532,18 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
                   <>✓ Impact Analyzed</>
                 ) : (
                   <>⚡ Analyze Sector Impact (0.02 USDC)</>
+                )}
+              </button>
+              <button
+                className="summarize-btn tip-btn"
+                onClick={handleTip}
+                disabled={isTipping}
+                style={{ marginTop: '0.75rem', backgroundImage: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+              >
+                {isTipping ? (
+                  <><span className="al-spinner" /> Negotiating tip payment...</>
+                ) : (
+                  <>💰 Tip The Author (0.01 USDC)</>
                 )}
               </button>
               <div className="modal-paid-badge">

@@ -59,8 +59,14 @@ When a user connects their Freighter wallet and funds a session, the app deploys
 - Category detection (Bitcoin, Ethereum, Stellar, DeFi, NFT, Regulation, etc.)
 - 4-column responsive layout: Billing Sidebar → Article Grid → Reading Digest → Impact Analysis
 
+### � Tip the Author
+- Direct micropayments to article authors (0.01 USDC per tip)
+- One-click tipping with no input required — simply click "Tip The Author" button
+- All tips are x402-gated and settled on Stellar via Soroban
+- Transparent transaction history showing tip recipients and amounts
+
 ### 💳 Session Billing & Transparency
-- Real-time session billing dashboard showing articles read, batches purchased, summaries, impacts, and total spend
+- Real-time session billing dashboard showing articles read, batches purchased, summaries, impacts, tips, and total spend
 - Budget progress bar with automatic exhaustion detection
 - Full transaction log with Stellar Explorer links for every payment
 - End-of-session summary with complete transaction history
@@ -309,7 +315,8 @@ npm run dev    # Starts on http://localhost:5173
 | Variable | Required | Description |
 |:---------|:---------|:------------|
 | `STELLAR_NETWORK` | Yes | `TESTNET` or `PUBLIC` |
-| `PUBLISHER_ADDRESS` | Yes | Stellar address that receives USDC payments |
+| `PUBLISHER_ADDRESS` | Yes | Stellar address that receives USDC payments for articles & AI services |
+| `AUTHOR_WALLET_ADDRESS` | Yes | Stellar address that receives tips (article author address) |
 | `FACILITATOR_STELLAR_PRIVATE_KEY` | Yes | Funded Stellar secret key for facilitator |
 | `FACILITATOR_URL` | Yes | OpenZeppelin Channels endpoint |
 | `FACILITATOR_API_KEY` | Yes | API key for the facilitator service |
@@ -360,8 +367,7 @@ All prices are denominated in **USDC** and settled on **Stellar Testnet** via So
 |:--------|:------|:--------------|:------------|
 | Article Batch | $0.10 | `POST /api/articles` | 10 crypto news articles per batch |
 | AI Summary | $0.05 | `POST /api/chat/summarize` | 50–80 word article summary via Groq |
-| Impact Analysis | $0.02 | `POST /api/chat/impact` | 40–50 word Web3 sector impact assessment |
-
+| Impact Analysis | $0.02 | `POST /api/chat/impact` | 40–50 word Web3 sector impact assessment || Tip the Author | $0.01 | `POST /api/chat/tip` | Direct micropayment to article author (fixed amount) |
 ### Session Budget Options
 
 | Budget | Approximate Capacity |

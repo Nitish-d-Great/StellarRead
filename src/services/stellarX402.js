@@ -13,7 +13,7 @@ import { x402HTTPClient } from '@x402/core/http';
 import { ExactStellarScheme } from '@x402/stellar/exact/client';
 
 const CONFIG = {
-  BACKEND_URL:        import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001',
+  BACKEND_URL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001',
   ARTICLES_PER_BATCH: 10,
   STELLAR_NETWORK_CAIP2: import.meta.env.VITE_STELLAR_NETWORK_CAIP2 || 'stellar:testnet',
   STELLAR_RPC_URL: import.meta.env.VITE_STELLAR_RPC_URL || '',
@@ -56,13 +56,13 @@ function formatX402PaymentBuildError(err) {
 
 class StellarX402Service {
   constructor() {
-    this.userAddress         = null;   // user's Freighter wallet
-    this.sessionBudget       = 0;
-    this.agentSecret         = null;
-    this.totalSpent          = 0;
-    this.transactions        = [];
-    this.batchCount          = 0;
-    this.isInitialized       = false;
+    this.userAddress = null;   // user's Freighter wallet
+    this.sessionBudget = 0;
+    this.agentSecret = null;
+    this.totalSpent = 0;
+    this.transactions = [];
+    this.batchCount = 0;
+    this.isInitialized = false;
   }
 
   /**
@@ -82,12 +82,12 @@ class StellarX402Service {
    * - Store wallet address + session settings
    */
   async initialize(userAddress, budgetXLM = 1.0, agentSecret = null) {
-    this.userAddress   = userAddress;
+    this.userAddress = userAddress;
     this.sessionBudget = budgetXLM;
-    this.agentSecret   = agentSecret;
-    this.totalSpent    = 0;
-    this.transactions  = [];
-    this.batchCount    = 0;
+    this.agentSecret = agentSecret;
+    this.totalSpent = 0;
+    this.transactions = [];
+    this.batchCount = 0;
 
     this.isInitialized = true;
   }
@@ -267,7 +267,7 @@ class StellarX402Service {
     const data = await paid.json();
 
     const txHash = settlement.transaction;
-    
+
     const txRecord = {
       type: 'summary',
       title: title.slice(0, 30) + '...',
@@ -349,7 +349,7 @@ class StellarX402Service {
     const data = await paid.json();
 
     const txHash = settlement.transaction;
-    
+
     const txRecord = {
       type: 'impact',
       title: title.slice(0, 30) + '...',
@@ -374,24 +374,112 @@ class StellarX402Service {
     return { txHash, impact: data.impact };
   }
 
+  async payForTip(title, amount) {
+    if (!this.isInitialized) throw new Error('Service not initialized');
+    if (!this.agentSecret) throw new Error('SESSION_NOT_FUNDED');
+    
+    amount = parseFloat(amount);
+    if (isNaN(amount) || amount <= 0) throw new Error('Invalid tip amount.');
+    
+    if (!this.hasBudget(amount)) throw new Error('Insufficient Agent Budget. Please restart session.');
+
+    const signer = createEd25519Signer(this.agentSecret, CONFIG.STELLAR_NETWORK_CAIP2);
+    const core = new x402Client().register(
+      'stellar:*',
+      new ExactStellarScheme(signer, CONFIG.STELLAR_RPC_URL ? { url: CONFIG.STELLAR_RPC_URL } : undefined),
+    );
+    const httpClient = new x402HTTPClient(core);
+
+    const payload = { title, amount };
+
+    // 1) Unpaid request to get PAYMENT-REQUIRED
+    const first = await fetch(`${CONFIG.BACKEND_URL}/api/chat/tip`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (first.status !== 402) {
+      if (!first.ok) throw new Error(`Backend error: ${first.status}`);
+      const data = await first.json();
+      throw new Error(`Expected 402 PAYMENT-REQUIRED, got 200`);
+    }
+
+    const paymentRequired = httpClient.getPaymentRequiredResponse(
+      (name) => first.headers.get(name),
+      await first.json().catch(() => ({})),
+    );
+
+    // 2) Build + sign Soroban transfer
+    let paymentPayload;
+    try {
+      paymentPayload = await httpClient.createPaymentPayload(paymentRequired);
+    } catch (e) {
+      throw new Error(`Tip Payment Error: ${formatX402PaymentBuildError(e)}`);
+    }
+
+    // 3) Retry request with PAYMENT-SIGNATURE
+    const paid = await fetch(`${CONFIG.BACKEND_URL}/api/chat/tip`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...httpClient.encodePaymentSignatureHeader(paymentPayload),
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!paid.ok) {
+      const err = await paid.json().catch(() => ({}));
+      throw new Error(`TIP_PAYMENT_REJECTED: ${err?.error || err?.message || paid.status}`);
+    }
+
+    const settlement = httpClient.getPaymentSettleResponse((name) => paid.headers.get(name));
+    const data = await paid.json();
+
+    const txHash = settlement.transaction;
+
+    const txRecord = {
+      type: 'tip',
+      title: title.slice(0, 30) + '...',
+      network: settlement.network,
+      transaction: txHash,
+      hash: txHash,
+      payer: settlement.payer,
+      timestamp: new Date().toISOString(),
+      status: settlement.success ? 'confirmed' : 'failed',
+      scheme: 'exact',
+      asset: paymentRequired?.accepts?.[0]?.asset || 'USDC',
+      amount: String(amount),
+      explorerUrl: txHash
+        ? `https://stellar.expert/explorer/testnet/tx/${txHash}`
+        : null,
+    };
+    this.transactions.push(txRecord);
+
+    // Deduct exact amount
+    this.totalSpent += amount;
+
+    return { txHash, message: data.message };
+  }
+
   getSessionSummary() {
     return {
-      batchCount:       this.batchCount,
-      totalSpent:       parseFloat(this.totalSpent.toFixed(6)),
-      transactions:     [...this.transactions],
-      budgetRemaining:  parseFloat(this.getRemainingBudget()),
-      sessionBudget:    this.sessionBudget,
+      batchCount: this.batchCount,
+      totalSpent: parseFloat(this.totalSpent.toFixed(6)),
+      transactions: [...this.transactions],
+      budgetRemaining: parseFloat(this.getRemainingBudget()),
+      sessionBudget: this.sessionBudget,
       articlesUnlocked: this.batchCount * CONFIG.ARTICLES_PER_BATCH,
-      asset:            'SEP-41 Token (e.g., USDC)',
-      network:          CONFIG.STELLAR_NETWORK_CAIP2,
+      asset: 'SEP-41 Token (e.g., USDC)',
+      network: CONFIG.STELLAR_NETWORK_CAIP2,
     };
   }
 
   reset() {
-    this.totalSpent      = 0;
-    this.transactions    = [];
-    this.batchCount      = 0;
-    this.isInitialized   = false;
+    this.totalSpent = 0;
+    this.transactions = [];
+    this.batchCount = 0;
+    this.isInitialized = false;
     console.log('🔄 StellarX402: session reset');
   }
 }
