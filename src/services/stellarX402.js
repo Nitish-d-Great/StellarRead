@@ -11,6 +11,8 @@ import { createEd25519Signer } from '@x402/stellar';
 import { x402Client } from '@x402/core/client';
 import { x402HTTPClient } from '@x402/core/http';
 import { ExactStellarScheme } from '@x402/stellar/exact/client';
+import * as StellarSdk from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
 
 const CONFIG = {
   BACKEND_URL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001',
@@ -460,6 +462,99 @@ class StellarX402Service {
     this.totalSpent += amount;
 
     return { txHash, message: data.message };
+  }
+
+  /**
+   * Direct wallet transfer from user to agent (no x402)
+   * User signs with Freighter, increases session budget
+   */
+  async addFunds(userAddress, amount) {
+    if (!this.isInitialized) throw new Error('Service not initialized');
+    if (!this.agentSecret) throw new Error('Agent wallet not initialized');
+
+    amount = parseFloat(amount);
+    if (isNaN(amount) || amount <= 0) throw new Error('Invalid refund amount');
+    if (amount > 1000) throw new Error('Amount too large (max 1000 USDC per tx)');
+
+    const agentKeypair = StellarSdk.Keypair.fromSecret(this.agentSecret);
+    const agentAddress = agentKeypair.publicKey();
+    const horizon = new StellarSdk.Horizon.Server('https://horizon-testnet.stellar.org');
+
+    try {
+      // Load user's account (payer)
+      const userAcc = await horizon.loadAccount(userAddress);
+
+      // Build transfer transaction
+      const transferTx = new StellarSdk.TransactionBuilder(userAcc, {
+        fee: StellarSdk.BASE_FEE,
+        networkPassphrase: StellarSdk.Networks.TESTNET
+      })
+        .addOperation(StellarSdk.Operation.payment({
+          destination: agentAddress,
+          asset: new StellarSdk.Asset('USDC', TESTNET_USDC_ISSUER),
+          amount: String(amount)
+        }))
+        .setTimeout(120)
+        .build();
+
+      // Sign with Freighter
+      const signedResult = await signTransaction(transferTx.toXDR(), {
+        network: 'TESTNET',
+        networkPassphrase: StellarSdk.Networks.TESTNET,
+      });
+
+      if (!signedResult) throw new Error('No signature returned');
+      if (signedResult.error) throw new Error(signedResult.error);
+
+      // Extract signed XDR (Freighter response format varies)
+      const signedXdrStr = typeof signedResult === 'string'
+        ? signedResult
+        : (signedResult.signedTxXdr || signedResult.signedTransaction || signedResult.transactionXdr || signedResult.signedCmd);
+
+      if (!signedXdrStr || typeof signedXdrStr !== 'string') {
+        throw new Error('Could not extract signed transaction from Freighter');
+      }
+
+      // Submit to network
+      const txToSubmit = StellarSdk.TransactionBuilder.fromXDR(signedXdrStr, StellarSdk.Networks.TESTNET);
+      const txResult = await horizon.submitTransaction(txToSubmit);
+
+      const txHash = txResult.hash;
+
+      // Record transaction
+      const txRecord = {
+        type: 'wallet-funded',
+        title: 'Session Top-up',
+        network: 'Stellar Testnet',
+        transaction: txHash,
+        hash: txHash,
+        payer: userAddress,
+        receiver: agentAddress,
+        timestamp: new Date().toISOString(),
+        status: 'confirmed',
+        scheme: 'direct',
+        asset: 'USDC',
+        amount: String(amount),
+        explorerUrl: txHash
+          ? `https://stellar.expert/explorer/testnet/tx/${txHash}`
+          : null,
+      };
+      this.transactions.push(txRecord);
+
+      // Increase session budget
+      this.sessionBudget += amount;
+
+      return { txHash, success: true };
+    } catch (err) {
+      const msg = err?.message || String(err);
+      if (msg.includes('insufficient')) {
+        throw new Error(`Insufficient USDC balance. Need ${amount} USDC in your wallet.`);
+      }
+      if (msg.includes('rejected') || msg.includes('declined') || msg.includes('denied')) {
+        throw new Error('Transfer cancelled in Freighter. Please try again and approve the transaction.');
+      }
+      throw new Error(`Transfer failed: ${msg}`);
+    }
   }
 
   getSessionSummary() {

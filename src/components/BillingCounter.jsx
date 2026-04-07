@@ -1,7 +1,7 @@
 import React from 'react';
 import './BillingCounter.css';
 
-const BillingCounter = ({ articlesRead, totalBatches, totalSummaries, totalImpacts, totalSpent, budgetXLM, remainingBudget }) => {
+const BillingCounter = ({ articlesRead, totalBatches, totalSummaries, totalImpacts, totalSpent, budgetXLM, remainingBudget, onAddFunds }) => {
   const budgetPct = budgetXLM > 0
     ? Math.min(((totalSpent || 0) / budgetXLM) * 100, 100)
     : 0;
@@ -56,7 +56,14 @@ const BillingCounter = ({ articlesRead, totalBatches, totalSummaries, totalImpac
               }}
             />
           </div>
-          <p className="bc-remaining">{(remainingBudget || 0).toFixed(2)} USD remaining</p>
+          <div className="bc-budget-footer">
+            <p className="bc-remaining">{(remainingBudget || 0).toFixed(2)} USD remaining</p>
+            {onAddFunds && (
+              <button className="bc-add-funds-btn" onClick={onAddFunds}>
+                + Add Funds
+              </button>
+            )}
+          </div>
         </div>
       )}
 

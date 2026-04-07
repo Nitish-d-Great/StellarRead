@@ -74,7 +74,7 @@ const AgentLog = ({ transactions, isAgentWorking, agentStatus, agentLog = [] }) 
             <div key={h} className="al-tx animate-fadeIn">
               <div className="al-tx-top">
                 <span className="al-tx-batch">
-                  {tx.batch ? `Batch #${tx.batch}` : tx.type ? `${tx.type.charAt(0).toUpperCase() + tx.type.slice(1)} Payment` : 'Payment'}
+                  {tx.batch ? `Batch #${tx.batch}` : tx.type === 'wallet-funded' ? 'Wallet Funded' : tx.type ? `${tx.type.charAt(0).toUpperCase() + tx.type.slice(1)} Payment` : 'Payment'}
                 </span>
                 <span className="al-tx-amount">{tx.amount ? `$${tx.amount}` : 'x402'}</span>
               </div>

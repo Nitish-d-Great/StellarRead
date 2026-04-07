@@ -33,6 +33,10 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
 
   const [isTipping, setIsTipping] = useState(false);
 
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('0.10');
+  const [currentBudget, setCurrentBudget] = useState(sessionBudget);
+
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
   const toggleTheme = () => {
     if (isDark) {
@@ -298,6 +302,53 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
     }
   };
 
+  const handleOpenRefundModal = () => {
+    setRefundAmount('0.10');
+    setShowRefundModal(true);
+  };
+
+  const handleCloseRefundModal = () => {
+    setShowRefundModal(false);
+    setRefundAmount('0.10');
+  };
+
+  const handleAddFunds = async () => {
+    const amount = parseFloat(refundAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setAgentStatus({ type: 'error', icon: '⚠️', message: 'Invalid amount.' });
+      return;
+    }
+
+    setAgentStatus({ type: 'info', icon: '💳', message: 'Requesting Freighter approval for USDC transfer...' });
+
+    try {
+      const result = await stellarService.addFunds(walletAddress, amount);
+      
+      // Update UI with new budget info
+      setTransactions(stellarService.getSessionSummary().transactions);
+      setCurrentBudget(currentBudget + amount);
+
+      logAgent({
+        type: 'wallet-funded',
+        decision: 'funded',
+        reason: `Wallet funded with +${amount} USDC · Agent balance increased`,
+      });
+      
+      setAgentStatus({ 
+        type: 'success', 
+        icon: '✅', 
+        message: `Added ${amount} USDC to your session. Budget now: ${stellarService.getRemainingBudget()} USD` 
+      });
+      
+      handleCloseRefundModal();
+      setTimeout(() => setAgentStatus(null), 4000);
+    } catch (err) {
+      console.error('Add funds error:', err);
+      setAgentStatus({ type: 'error', icon: '⚠️', message: `Transfer failed: ${err.message}` });
+      setTimeout(() => setAgentStatus(null), 5000);
+    }
+  };
+
   const unreadCount = articles.filter(a => !readIds.has(a.id)).length;
   const readRatio = articles.length > 0 ? (readIds.size / articles.length) : 0;
 
@@ -317,8 +368,9 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
             totalSummaries={readingDigest.length}
             totalImpacts={impactDigests.length}
             totalSpent={totalSpent}
-            budgetXLM={sessionBudget}
+            budgetXLM={currentBudget}
             remainingBudget={parseFloat(stellarService.getRemainingBudget())}
+            onAddFunds={handleOpenRefundModal}
           />
 
           <div className="card interests-card">
@@ -548,6 +600,81 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
               </button>
               <div className="modal-paid-badge">
                 ✓ Unlocked via x402 · Wallet-approved signature · Settled on Stellar
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRefundModal && (
+        <div className="modal-overlay" onClick={handleCloseRefundModal}>
+          <div className="article-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <button className="modal-close" onClick={handleCloseRefundModal}>✕</button>
+            <div className="modal-body">
+              <h2>💰 Add Funds to Agent Wallet</h2>
+              <p style={{ marginTop: '1rem', fontSize: '0.95rem', color: '#aaa' }}>
+                Add more USDC to continue your session after reaching the budget limit.
+              </p>
+
+              <div style={{ marginTop: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: '#ccc' }}>
+                  Amount (USDC)
+                </label>
+                <input
+                  type="number"
+                  value={refundAmount}
+                  onChange={e => setRefundAmount(e.target.value)}
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.10"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #444',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: '#fff',
+                    fontSize: '1rem'
+                  }}
+                />
+                <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#888' }}>
+                  Remaining budget: {parseFloat(stellarService.getRemainingBudget()) || 0} USD
+                </p>
+              </div>
+
+              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
+                <button
+                  onClick={handleCloseRefundModal}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#444',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '0.95rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddFunds}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundImage: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '0.95rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  ✓ Add Funds
+                </button>
               </div>
             </div>
           </div>
