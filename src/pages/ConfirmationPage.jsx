@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { getStellarX402Service } from '../services/stellarX402';
 import './ConfirmationPage.css';
 
-const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
+const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession, bookmarkedArticles = [] }) => {
   const navigate = useNavigate();
   const [refundState, setRefundState] = useState('idle'); // idle | loading | success | error
   const [refundResult, setRefundResult] = useState(null);
   const [refundError, setRefundError] = useState(null);
+
+  const [expandedBookmark, setExpandedBookmark] = useState(null);
 
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
   const toggleTheme = () => {
@@ -64,11 +66,12 @@ const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
   };
 
   return (
-    <div className="conf-page">
+    <div className={`conf-page ${bookmarkedArticles.length > 0 ? 'conf-page--with-bookmarks' : ''}`}>
       <button className="theme-toggle-btn" onClick={toggleTheme} aria-label="Toggle Dark Mode">
         {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
       </button>
 
+      <div className={`conf-layout ${bookmarkedArticles.length > 0 ? 'conf-layout--two-col' : ''}`}>
       <div className="conf-container">
 
         {/* Header */}
@@ -224,6 +227,71 @@ const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
           <span>🏆</span>
           <span>Stellar Agents x402 Hackathon 2026 · DoraHacks</span>
         </div>
+
+      </div>
+
+      {/* Bookmarked Articles Sidebar */}
+      {bookmarkedArticles.length > 0 && (
+        <aside className="conf-bookmarks">
+          <div className="conf-bookmarks-header">
+            <span style={{ fontSize: '1.25rem' }}>★</span>
+            <h3>Bookmarked Articles ({bookmarkedArticles.length})</h3>
+          </div>
+          <div className="conf-bookmarks-list">
+            {bookmarkedArticles.map((article) => (
+              <div
+                key={article.sourceId}
+                className={`conf-bookmark-card ${expandedBookmark === article.sourceId ? 'expanded' : ''}`}
+              >
+                <div
+                  className="conf-bookmark-top"
+                  onClick={() => setExpandedBookmark(
+                    expandedBookmark === article.sourceId ? null : article.sourceId
+                  )}
+                >
+                  {article.image && (
+                    <img className="conf-bookmark-img" src={article.image} alt="" />
+                  )}
+                  <div className="conf-bookmark-info">
+                    <h4>{article.title}</h4>
+                    <div className="conf-bookmark-meta">
+                      {article.category && <span className="conf-bookmark-cat">{article.category}</span>}
+                      {article.author && <span>{article.author}</span>}
+                      {article.readTime && <span>{article.readTime}</span>}
+                    </div>
+                  </div>
+                  <span className="conf-bookmark-chevron">
+                    {expandedBookmark === article.sourceId ? '▲' : '▼'}
+                  </span>
+                </div>
+                {expandedBookmark === article.sourceId && (
+                  <div className="conf-bookmark-body">
+                    {article.content ? (
+                      <div className="conf-bookmark-content">
+                        {article.content.split('\n\n').map((para, i) => (
+                          <p key={i}>{para}</p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="conf-bookmark-empty">Full content not available.</p>
+                    )}
+                    {article.url && (
+                      <a
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="conf-bookmark-link"
+                      >
+                        Read original on {article.source || 'source'} ↗
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
 
       </div>
     </div>

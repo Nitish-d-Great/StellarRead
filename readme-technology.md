@@ -1106,8 +1106,8 @@ export default {
 | Component | Responsibility | Key Props |
 |-----------|---------------|-----------|
 | **LandingPage** | Wallet connection, budget selection, agent deployment | onSessionStart, walletAddress |
-| **NewsFeedPage** | Article display, reading tracking, agent orchestration | walletAddress, sessionBudget, userInterests |
-| **ConfirmationPage** | Session summary with on-chain proofs + refund | sessionSummary, walletAddress |
+| **NewsFeedPage** | Article display, reading tracking, agent orchestration, bookmarking | walletAddress, sessionBudget, userInterests, bookmarkedArticles |
+| **ConfirmationPage** | Session summary, refund, bookmarked articles | sessionSummary, walletAddress, bookmarkedArticles |
 | **Header** | App bar with wallet info and batch stats | walletAddress, totalSpent, batchCount |
 | **ArticleCard** | Individual article tile in the feed grid | article, isRead, onClick |
 | **BillingCounter** | Real-time session billing dashboard | articlesRead, totalSpent, budgetXLM, ... |

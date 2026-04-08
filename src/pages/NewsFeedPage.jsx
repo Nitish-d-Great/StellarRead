@@ -10,7 +10,7 @@ import './NewsFeedPage.css';
 
 const TOP_UP_READ_RATIO = 0.8; // pay when user has read >=80%
 
-const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEnd }) => {
+const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEnd, bookmarkedArticles, setBookmarkedArticles }) => {
   const navigate = useNavigate();
   const stellarService = getStellarX402Service();
 
@@ -310,6 +310,16 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
       setIsTipping(false);
     }
   };
+
+  const toggleBookmark = (article) => {
+    setBookmarkedArticles(prev => {
+      const exists = prev.some(a => a.sourceId === article.sourceId);
+      if (exists) return prev.filter(a => a.sourceId !== article.sourceId);
+      return [...prev, article];
+    });
+  };
+
+  const isBookmarked = (article) => bookmarkedArticles.some(a => a.sourceId === article.sourceId);
 
   const handleAsk = async () => {
     if (!selectedArticle || !askQuestion.trim()) return;
@@ -642,6 +652,16 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
                 style={{ marginTop: '0.75rem', backgroundImage: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}
               >
                 {linkCopied ? '✓ Link Copied!' : '🔗 Share Article'}
+              </button>
+
+              <button
+                className={`summarize-btn bookmark-btn ${isBookmarked(selectedArticle) ? 'bookmarked' : ''}`}
+                onClick={() => toggleBookmark(selectedArticle)}
+                style={{ marginTop: '0.75rem', backgroundImage: isBookmarked(selectedArticle)
+                  ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                  : 'linear-gradient(135deg, #64748b 0%, #475569 100%)' }}
+              >
+                {isBookmarked(selectedArticle) ? '★ Bookmarked' : '☆ Bookmark Article'}
               </button>
 
               {/* Ask a Question */}

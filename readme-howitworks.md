@@ -395,6 +395,8 @@ When the user clicks "End Session", the app navigates to the Confirmation page w
 └──────────────────────────────────────────────────┘
 ```
 
+If the user bookmarked any articles during the session, a **Bookmarked Articles** sidebar appears alongside the summary. Each bookmark is expandable — click to read the full article content or follow the link to the original source.
+
 Every transaction hash is a clickable link to [Stellar Expert](https://stellar.expert/explorer/testnet), where anyone can independently verify:
 - The exact USDC amount transferred
 - The sender (agent wallet) and receiver (publisher)
@@ -746,14 +748,16 @@ App.jsx
 │   ├── BillingCounter (session billing stats)
 │   ├── AgentLog (decision history + tx list)
 │   ├── ArticleCard[] (news feed grid)
-│   ├── Article Modal (full article + AI actions)
+│   ├── Article Modal (full article + AI actions + bookmark)
 │   ├── Reading Digest (summaries panel)
 │   └── Impact Sidebar (impact analyses panel)
 │
 └── ConfirmationPage.jsx
     ├── Session Stats (articles, batches, spent, remaining)
     ├── Transaction List (hashes + explorer links)
-    └── x402 Explainer (how the session worked)
+    ├── x402 Explainer (how the session worked)
+    ├── Refund Button (reclaim unspent USDC)
+    └── Bookmarked Articles Sidebar (expandable cards)
 ```
 
 ### State Management
@@ -894,8 +898,10 @@ T+155s   Answer appears in article modal
 ...
 T+300s   Budget exhausted
 T+301s   Agent: "Budget exhausted" banner
+T+200s   User bookmarks an interesting article for later
 T+305s   User clicks "End Session"
-T+306s   Confirmation page: full audit trail + Stellar Explorer links
+T+306s   Confirmation page: audit trail + bookmarked articles sidebar
+T+308s   User expands a bookmarked article to re-read it
 T+310s   User clicks "Refund" to reclaim unspent USDC
 T+312s   Agent auto-signs refund tx → USDC returned to Freighter wallet
 ```

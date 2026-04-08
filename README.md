@@ -78,6 +78,13 @@ When a user connects their Freighter wallet and funds a session, the app deploys
 - Direct USDC transfer from user wallet to agent wallet (no x402 needed for funding)
 - Session budget updates immediately after transfer confirmation
 - Full transaction history records all wallet funding events with Stellar Explorer links
+### ★ Bookmark Articles
+- Bookmark any article while reading to save it for later
+- Click "Bookmark Article" in the article modal to toggle the bookmark
+- Bookmarked articles appear in a dedicated sidebar on the Confirmation page
+- Click any bookmark to expand and read the full article content
+- No x402 payment required — bookmarking is free
+
 ### 💸 Session Refund
 - Refund unspent USDC from the agent wallet back to your Freighter wallet at session end
 - Click the "Refund" button on the Confirmation page to reclaim remaining funds
@@ -391,6 +398,7 @@ All prices are denominated in **USDC** and settled on **Stellar Testnet** via So
 | Ask a Question | $0.03 | `POST /api/chat/ask` | AI-generated answer to a user question about an article |
 | Tip the Author | $0.01 | `POST /api/chat/tip` | Direct micropayment to article author (fixed amount) |
 | Share Article | Free | N/A | Copy original article link to clipboard |
+| Bookmark Article | Free | N/A | Save articles to read on the confirmation page |
 | Add Funds | Free* | (Direct transfer) | Top-up agent wallet mid-session (only Stellar network fee) |
 | Refund | Free* | (Direct transfer) | Refund unspent USDC from agent wallet back to user wallet |
 
@@ -415,9 +423,10 @@ All prices are denominated in **USDC** and settled on **Stellar Testnet** via So
 5. **Auto Top-Up** — When ≥80% of articles are read, the agent autonomously triggers a paid x402 request for the next batch
 6. **AI Features** — Click any article to summarize it, analyze its sector impact, or ask a question about it (each is an independent x402 payment)
 7. **Share Articles** — Click "Share Article" in the article modal to copy the original source link to your clipboard
-8. **Extend Session** — Click "Add Funds" in the Billing Counter to top up your budget mid-session without restarting
-9. **Refund** — On the confirmation page, refund any unspent USDC back to your Freighter wallet
-10. **End Session** — View the complete session summary with all transactions and Stellar Explorer links
+8. **Bookmark Articles** — Bookmark articles while reading to save them for later review on the confirmation page
+9. **Extend Session** — Click "Add Funds" in the Billing Counter to top up your budget mid-session without restarting
+10. **Refund** — On the confirmation page, refund any unspent USDC back to your Freighter wallet
+11. **End Session** — View the complete session summary, bookmarked articles, and all transactions with Stellar Explorer links
 
 ---
 

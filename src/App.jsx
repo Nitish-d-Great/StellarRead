@@ -11,6 +11,7 @@ function App() {
   const [userInterests, setUserInterests]     = useState('Stellar, DeFi, AI agents');
   const [sessionReady, setSessionReady]       = useState(false);
   const [sessionSummary, setSessionSummary]   = useState(null);
+  const [bookmarkedArticles, setBookmarkedArticles] = useState([]);
 
   const stellarServiceRef = useRef(null);
 
@@ -32,6 +33,7 @@ function App() {
     setSessionSummary(null);
     setSessionReady(false);
     setWalletAddress(null);
+    setBookmarkedArticles([]);
     const service = getStellarX402Service();
     service.reset();
     // Force new instance next time
@@ -54,6 +56,8 @@ function App() {
             sessionBudget={sessionBudget}
             userInterests={userInterests}
             onSessionEnd={handleSessionEnd}
+            bookmarkedArticles={bookmarkedArticles}
+            setBookmarkedArticles={setBookmarkedArticles}
           />
         } />
         <Route path="/confirmation" element={
@@ -61,6 +65,7 @@ function App() {
             walletAddress={walletAddress}
             sessionSummary={sessionSummary}
             onNewSession={handleNewSession}
+            bookmarkedArticles={bookmarkedArticles}
           />
         } />
       </Routes>
