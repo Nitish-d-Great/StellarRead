@@ -557,6 +557,69 @@ class StellarX402Service {
     }
   }
 
+  /**
+   * Refund remaining USDC from agent wallet back to user wallet.
+   * Auto-signed by the agent secret key — no Freighter approval needed.
+   */
+  async refundRemainingFunds(userAddress) {
+    if (!this.isInitialized) throw new Error('Service not initialized');
+    if (!this.agentSecret) throw new Error('Agent wallet not initialized');
+
+    const agentKeypair = StellarSdk.Keypair.fromSecret(this.agentSecret);
+    const agentAddress = agentKeypair.publicKey();
+    const horizon = new StellarSdk.Horizon.Server('https://horizon-testnet.stellar.org');
+
+    // Check agent's USDC balance on-chain
+    const agentAcc = await horizon.loadAccount(agentAddress);
+    const usdcBalance = agentAcc.balances.find(
+      b => b.asset_code === 'USDC' && b.asset_issuer === TESTNET_USDC_ISSUER
+    );
+
+    if (!usdcBalance || parseFloat(usdcBalance.balance) <= 0) {
+      throw new Error('No USDC remaining in agent wallet');
+    }
+
+    const refundAmount = parseFloat(usdcBalance.balance);
+
+    // Build transfer: agent → user
+    const transferTx = new StellarSdk.TransactionBuilder(agentAcc, {
+      fee: StellarSdk.BASE_FEE,
+      networkPassphrase: StellarSdk.Networks.TESTNET,
+    })
+      .addOperation(StellarSdk.Operation.payment({
+        destination: userAddress,
+        asset: new StellarSdk.Asset('USDC', TESTNET_USDC_ISSUER),
+        amount: usdcBalance.balance,
+      }))
+      .setTimeout(120)
+      .build();
+
+    // Auto-sign with agent secret
+    transferTx.sign(agentKeypair);
+
+    const txResult = await horizon.submitTransaction(transferTx);
+    const txHash = txResult.hash;
+
+    const txRecord = {
+      type: 'refund',
+      title: 'Session Refund',
+      network: 'Stellar Testnet',
+      transaction: txHash,
+      hash: txHash,
+      payer: agentAddress,
+      receiver: userAddress,
+      timestamp: new Date().toISOString(),
+      status: 'confirmed',
+      scheme: 'direct',
+      asset: 'USDC',
+      amount: refundAmount.toFixed(7),
+      explorerUrl: `https://stellar.expert/explorer/testnet/tx/${txHash}`,
+    };
+    this.transactions.push(txRecord);
+
+    return { txHash, refundedAmount: refundAmount, explorerUrl: txRecord.explorerUrl };
+  }
+
   getSessionSummary() {
     return {
       batchCount: this.batchCount,

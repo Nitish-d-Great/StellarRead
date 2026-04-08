@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getStellarX402Service } from '../services/stellarX402';
 import './ConfirmationPage.css';
 
 const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
   const navigate = useNavigate();
+  const [refundState, setRefundState] = useState('idle'); // idle | loading | success | error
+  const [refundResult, setRefundResult] = useState(null);
+  const [refundError, setRefundError] = useState(null);
 
   if (!sessionSummary) {
     return (
@@ -30,6 +34,20 @@ const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
   const handleNewSession = () => {
     onNewSession();
     navigate('/');
+  };
+
+  const handleRefund = async () => {
+    setRefundState('loading');
+    setRefundError(null);
+    try {
+      const service = getStellarX402Service();
+      const result = await service.refundRemainingFunds(walletAddress);
+      setRefundResult(result);
+      setRefundState('success');
+    } catch (err) {
+      setRefundError(err.message);
+      setRefundState('error');
+    }
   };
 
   return (
@@ -119,6 +137,54 @@ const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
           <div className="conf-wallet">
             <span>👛 Wallet:</span>
             <span className="conf-addr">{walletAddress}</span>
+          </div>
+        )}
+
+        {/* Refund */}
+        {budgetRemaining > 0 && refundState !== 'success' && (
+          <div className="conf-refund">
+            <div className="conf-refund-info">
+              <span className="conf-refund-icon">💸</span>
+              <div>
+                <strong>Refund Remaining Funds</strong>
+                <p>
+                  You have <span className="conf-refund-amount">{(budgetRemaining || 0).toFixed(2)} USDC</span> unspent
+                  in your agent wallet. Refund it back to your Freighter wallet.
+                </p>
+              </div>
+            </div>
+            <button
+              className="btn btn-refund"
+              onClick={handleRefund}
+              disabled={refundState === 'loading'}
+            >
+              {refundState === 'loading' ? (
+                <><span className="al-spinner" /> Processing Refund...</>
+              ) : (
+                <>Refund {(budgetRemaining || 0).toFixed(2)} USDC</>
+              )}
+            </button>
+            {refundState === 'error' && (
+              <p className="conf-refund-error">{refundError}</p>
+            )}
+          </div>
+        )}
+
+        {refundState === 'success' && refundResult && (
+          <div className="conf-refund-success">
+            <span className="conf-refund-check">✓</span>
+            <div>
+              <strong>Refund Successful</strong>
+              <p>{parseFloat(refundResult.refundedAmount).toFixed(2)} USDC returned to your wallet.</p>
+              <a
+                href={refundResult.explorerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ctx-link"
+              >
+                View on Stellar Expert ↗
+              </a>
+            </div>
           </div>
         )}
 
