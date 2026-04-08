@@ -152,7 +152,7 @@ StellarRead's architecture revolves around three distinct actors:
 - Returns `HTTP 402 Payment Required` for unpaid requests
 - Delegates payment verification and settlement to the **Facilitator**
 - Only releases content after on-chain settlement confirmation
-- Also serves as the Groq AI inference gateway for summaries and impact analyses
+- Also serves as the Groq AI inference gateway for summaries, impact analyses, and article Q&A
 
 ---
 
@@ -303,7 +303,7 @@ A **5-second debounce** prevents double-firing on rapid state updates. The agent
 
 ### Phase 4: AI-Powered Analysis (Paid Compute)
 
-Beyond article access, StellarRead offers two AI-powered services, each gated behind its own x402 paywall:
+Beyond article access, StellarRead offers three AI-powered services, each gated behind its own x402 paywall:
 
 #### Article Summarization ($0.05 USDC)
 
@@ -343,13 +343,28 @@ stellarService.payForImpact(title, content)
         └─ Impact appears in Impact Analysis panel
 ```
 
+#### Ask a Question ($0.03 USDC)
+
+```
+User clicks "Ask a Question", types a question, and submits
+        │
+        ▼
+stellarService.payForAsk(title, content, question)
+        │
+        ├─ Same x402 handshake as above
+        ├─ Price: 0.03 USDC
+        ├─ Groq prompt: "Answer the user's question based strictly on this article"
+        │   System: "Limit response to 50-80 words"
+        └─ Answer appears in the article modal
+```
+
 **Key insight:** These AI services are not free APIs with a payment bolt-on. The x402 payment is a *prerequisite* — the server literally will not call the Groq API until it has cryptographic proof of on-chain settlement. The payment and the compute are atomically linked through the x402 protocol.
 
 ---
 
 ### Phase 5: Session Summary & On-Chain Proof
 
-When the user clicks "End Session", the app navigates to the Confirmation page with a complete audit trail:
+When the user clicks "End Session", the app navigates to the Confirmation page with a complete audit trail. The user can also **refund any unspent USDC** from the agent wallet back to their Freighter wallet — auto-signed by the agent key, no Freighter approval needed:
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -515,10 +530,10 @@ The agent wallet is the cornerstone of StellarRead's autonomy model:
 │    Budget tracked in-memory             │
 │                                         │
 │  Session End:                           │
-│    Secret key discarded                 │
+│    User can refund remaining USDC       │
+│    (agent auto-signs the refund tx)     │
+│    Secret key discarded after session   │
 │    Wallet becomes inaccessible          │
-│    Remaining USDC stays on-chain        │
-│    (user can recover via secret backup) │
 └─────────────────────────────────────────┘
 ```
 
@@ -641,13 +656,15 @@ This provides:
 
 ### Route Registration & Pricing
 
-Three x402-protected routes are registered, each with its own price:
+Five x402-protected routes are registered, each with its own price:
 
 | Route | Price | Description |
 |-------|-------|-------------|
 | `POST /api/articles` | $0.10 USDC | Unlock 10 news articles |
 | `POST /api/chat/summarize` | $0.05 USDC | AI article summarization (Groq) |
+| `POST /api/chat/ask` | $0.03 USDC | AI article Q&A (Groq) |
 | `POST /api/chat/impact` | $0.02 USDC | AI sector impact analysis (Groq) |
+| `POST /api/chat/tip` | $0.01 USDC | Tip the article author |
 
 Plus free routes that don't require payment:
 
@@ -869,11 +886,18 @@ T+121s   x402 handshake for /api/chat/summarize
 T+123s   Facilitator settles 0.05 USDC
 T+124s   Groq generates summary (Llama 3.1 8B)
 T+125s   Summary appears in Reading Digest
+T+150s   User clicks "Ask a Question" ($0.03)
+T+151s   x402 handshake for /api/chat/ask
+T+153s   Facilitator settles 0.03 USDC
+T+154s   Groq answers question based on article content
+T+155s   Answer appears in article modal
 ...
 T+300s   Budget exhausted
 T+301s   Agent: "Budget exhausted" banner
 T+305s   User clicks "End Session"
 T+306s   Confirmation page: full audit trail + Stellar Explorer links
+T+310s   User clicks "Refund" to reclaim unspent USDC
+T+312s   Agent auto-signs refund tx → USDC returned to Freighter wallet
 ```
 
 ---

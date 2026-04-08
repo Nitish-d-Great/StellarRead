@@ -34,6 +34,11 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
   const [isTipping, setIsTipping] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
+  const [showAskInput, setShowAskInput] = useState(false);
+  const [askQuestion, setAskQuestion] = useState('');
+  const [isAsking, setIsAsking] = useState(false);
+  const [askAnswer, setAskAnswer] = useState(null);
+
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundAmount, setRefundAmount] = useState('0.10');
   const [currentBudget, setCurrentBudget] = useState(sessionBudget);
@@ -216,6 +221,9 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
 
   const handleArticleClick = (article) => {
     setSelectedArticle(article);
+    setShowAskInput(false);
+    setAskQuestion('');
+    setAskAnswer(null);
     if (!readIds.has(article.id)) {
       setReadIds(prev => new Set([...prev, article.id]));
     }
@@ -300,6 +308,29 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
       setAgentStatus({ type: 'error', icon: '⚠️', message: `Tipping failed: ${err.message}` });
     } finally {
       setIsTipping(false);
+    }
+  };
+
+  const handleAsk = async () => {
+    if (!selectedArticle || !askQuestion.trim()) return;
+    setIsAsking(true);
+    setAskAnswer(null);
+    setAgentStatus({ type: 'info', icon: '🤖', message: 'Agent negotiating x402 payment for Q&A compute...' });
+
+    try {
+      const { answer } = await stellarService.payForAsk(selectedArticle.title, selectedArticle.content, askQuestion.trim());
+
+      setAskAnswer(answer);
+      setTransactions(stellarService.getSessionSummary().transactions);
+      setTotalSpent(stellarService.totalSpent);
+
+      setAgentStatus({ type: 'success', icon: '✨', message: 'Question answered & settled for $0.03 USDC.' });
+      setTimeout(() => setAgentStatus(null), 4000);
+    } catch (err) {
+      console.error('Ask error:', err.message);
+      setAgentStatus({ type: 'error', icon: '⚠️', message: `Q&A failed: ${err.message}` });
+    } finally {
+      setIsAsking(false);
     }
   };
 
@@ -612,6 +643,42 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
               >
                 {linkCopied ? '✓ Link Copied!' : '🔗 Share Article'}
               </button>
+
+              {/* Ask a Question */}
+              <button
+                className="summarize-btn ask-btn"
+                onClick={() => setShowAskInput(prev => !prev)}
+                style={{ marginTop: '0.75rem', backgroundImage: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)' }}
+              >
+                ❓ Ask a Question (0.03 USDC)
+              </button>
+              {showAskInput && (
+                <div className="ask-container">
+                  <input
+                    type="text"
+                    className="ask-input"
+                    placeholder="Type your question about this article..."
+                    value={askQuestion}
+                    onChange={e => setAskQuestion(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && askQuestion.trim()) handleAsk(); }}
+                    disabled={isAsking}
+                  />
+                  <button
+                    className="ask-submit-btn"
+                    onClick={handleAsk}
+                    disabled={isAsking || !askQuestion.trim()}
+                  >
+                    {isAsking ? <><span className="al-spinner" /> Asking...</> : 'Submit'}
+                  </button>
+                  {askAnswer && (
+                    <div className="ask-answer">
+                      <strong>Answer:</strong>
+                      <p>{askAnswer}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="modal-paid-badge">
                 ✓ Unlocked via x402 · Wallet-approved signature · Settled on Stellar
               </div>

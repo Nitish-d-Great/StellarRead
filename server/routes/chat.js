@@ -182,6 +182,95 @@ router.post('/impact', async (req, res) => {
   }
 });
 
+router.post('/ask', async (req, res) => {
+  try {
+    const { httpServer } = await getX402();
+    const pathname = req.originalUrl.split(/[?#]/)[0] || '/';
+
+    const adapter = {
+      getHeader: (name) => req.get(name) || '',
+      getAcceptHeader: () => req.get('accept') || '',
+      getUserAgent: () => req.get('user-agent') || '',
+      getUrl: () => `${req.protocol}://${req.get('host')}${req.originalUrl}`,
+    };
+
+    const transportContext = { request: { adapter, path: pathname, method: req.method } };
+    const result = await httpServer.processHTTPRequest(
+      { adapter, path: pathname, method: req.method },
+      undefined,
+    );
+
+    if (result.type === 'payment-error') {
+      res.status(result.response.status);
+      for (const [k, v] of Object.entries(result.response.headers || {})) res.setHeader(k, v);
+      return res.json(result.response.body);
+    }
+
+    if (result.type !== 'payment-verified') {
+      return res.status(500).json({ error: 'x402_unexpected_state', message: result.type });
+    }
+
+    const settled = await httpServer.processSettlement(
+      result.paymentPayload,
+      result.paymentRequirements,
+      result.declaredExtensions,
+      transportContext,
+    );
+
+    if (!settled.success) {
+      res.status(settled.response.status);
+      for (const [k, v] of Object.entries(settled.response.headers || {})) res.setHeader(k, v);
+      return res.json(settled.response.body);
+    }
+
+    for (const [k, v] of Object.entries(settled.headers || {})) res.setHeader(k, v);
+
+    console.log(`🤖 Agent Executing Groq Q&A for paid tx: ${String(settled.transaction).slice(0, 8)}...`);
+
+    const { title, content, question } = req.body;
+    if (!title || !content || !question) {
+      return res.status(400).json({ error: 'Missing title, content, or question in request body.' });
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({ error: 'Groq API Key is not configured on the server.' });
+    }
+
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are a knowledgeable crypto/Web3 news assistant. Answer the user's question based strictly on the provided article content. Be concise and accurate. If the article does not contain enough information to answer, say so. Limit your response to 50-80 words.",
+        },
+        {
+          role: "user",
+          content: `Article Title: ${title}\nArticle Content:\n${content.substring(0, 3000)}\n\nQuestion: ${question}`
+        }
+      ],
+      model: "llama-3.1-8b-instant",
+      temperature: 0.3,
+    });
+
+    const answer = completion.choices[0]?.message?.content || "Could not generate an answer.";
+
+    res.json({
+      success: true,
+      answer,
+      paymentProof: {
+        transaction: settled.transaction,
+        payer: settled.payer,
+        network: settled.network,
+      }
+    });
+
+  } catch (err) {
+    console.error('Groq Q&A error:', err.message);
+    res.status(500).json({ error: err.message || 'Failed to generate answer' });
+  }
+});
+
 router.post('/tip', async (req, res) => {
   try {
     const { httpServer } = await getX402();

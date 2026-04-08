@@ -840,7 +840,9 @@ The agent operates in three distinct modes:
 | **Free load** | Session start | None (free batch) |
 | **Auto-pay (articles)** | ≥80% articles read | $0.10 USDC via x402 |
 | **On-demand (summary)** | User clicks "Summarize" | $0.05 USDC via x402 |
+| **On-demand (Q&A)** | User clicks "Ask a Question" | $0.03 USDC via x402 |
 | **On-demand (impact)** | User clicks "Impact" | $0.02 USDC via x402 |
+| **On-demand (tip)** | User clicks "Tip The Author" | $0.01 USDC via x402 |
 
 For auto-pay, the agent acts without any user prompt. For on-demand services, the user initiates the action, but the agent handles all payment mechanics autonomously.
 
@@ -912,6 +914,45 @@ User clicks "Ask Agent to Summarize"
          Display in Reading Digest panel
 ```
 
+### Article Q&A Pipeline
+
+```
+User clicks "Ask a Question", types question, submits
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│  x402 Payment Gate                      │
+│  POST /api/chat/ask                     │
+│  Price: 0.03 USDC                       │
+│  Settlement: Soroban USDC transfer      │
+└─────────────┬───────────────────────────┘
+              │ (payment settled)
+              ▼
+┌───────────────────────────────────────-──┐
+│  Groq API Call                           │
+│                                          │
+│  System Prompt:                          │
+│  "You are a knowledgeable crypto/Web3    │
+│   news assistant. Answer the user's      │
+│   question based strictly on the         │
+│   provided article content. Be concise   │
+│   and accurate. Limit your response to   │
+│   50-80 words."                          │
+│                                          │
+│  User Prompt:                            │
+│  "Article Title: {title}                 │
+│   Article Content: {first 3000 chars}    │
+│   Question: {user's question}"           │
+│                                          │
+│  Temperature: 0.3                        │
+│  Model: llama-3.1-8b-instant             │
+└─────────────┬───────────────────────────-┘
+              │
+              ▼
+         Answer returned
+         Display in article modal
+```
+
 ### Sector Impact Analysis Pipeline
 
 ```
@@ -953,7 +994,7 @@ User clicks "Analyze Sector Impact"
 
 ### Prompt Engineering
 
-Both AI services use carefully crafted system prompts:
+All three AI services use carefully crafted system prompts:
 
 **Summarization prompt design choices:**
 - "20-30 word bulleted digest" → Forces extreme brevity
@@ -967,6 +1008,12 @@ Both AI services use carefully crafted system prompts:
 - "40-50 words" → Slightly longer than summary, but still concise
 - Same temperature (0.3) → Consistency
 
+**Q&A prompt design choices:**
+- "Based strictly on the provided article content" → Prevents hallucination beyond article scope
+- "Be concise and accurate" → Factual, direct answers
+- "50-80 words" → Detailed enough to be useful, concise enough to be scannable
+- "If the article does not contain enough information, say so" → Honest about limitations
+
 ### Paid Compute — x402 Gated AI
 
 The integration of x402 with AI inference is a key innovation of StellarRead:
@@ -978,7 +1025,7 @@ Traditional AI API:
 StellarRead AI:
   No API key needed
   Each call: x402 payment → on-chain settlement → compute
-  Pricing: $0.05/summary, $0.02/impact
+  Pricing: $0.05/summary, $0.03/question, $0.02/impact
   Revenue: Instant, on-chain, auditable
 ```
 
@@ -1060,7 +1107,7 @@ export default {
 |-----------|---------------|-----------|
 | **LandingPage** | Wallet connection, budget selection, agent deployment | onSessionStart, walletAddress |
 | **NewsFeedPage** | Article display, reading tracking, agent orchestration | walletAddress, sessionBudget, userInterests |
-| **ConfirmationPage** | Session summary with on-chain proofs | sessionSummary, walletAddress |
+| **ConfirmationPage** | Session summary with on-chain proofs + refund | sessionSummary, walletAddress |
 | **Header** | App bar with wallet info and batch stats | walletAddress, totalSpent, batchCount |
 | **ArticleCard** | Individual article tile in the feed grid | article, isRead, onClick |
 | **BillingCounter** | Real-time session billing dashboard | articlesRead, totalSpent, budgetXLM, ... |
@@ -1360,7 +1407,7 @@ x402 transforms the HTTP protocol itself into a payment channel. No payment form
 The ephemeral agent wallet pattern demonstrates how AI agents can transact independently within user-defined budgets. This is the foundation of the emerging **agentic economy**.
 
 ### 3. Paid Compute as a Service
-By gating Groq AI calls behind x402, StellarRead demonstrates that compute resources can be sold per-invocation with instant blockchain settlement — no API keys, no monthly plans, no invoicing.
+By gating Groq AI calls behind x402, StellarRead demonstrates that compute resources (summarization, impact analysis, Q&A) can be sold per-invocation with instant blockchain settlement — no API keys, no monthly plans, no invoicing.
 
 ### 4. Sub-Cent Content Monetization
 At $0.01 per article, StellarRead achieves content pricing that is economically impossible with credit card processors (minimum $0.30 per transaction). Stellar's $0.00001 fees make this viable.

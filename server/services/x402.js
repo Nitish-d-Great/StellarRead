@@ -133,6 +133,16 @@ export async function getX402() {
       description: 'Groq AI Web3 Impact Analysis Compute',
       mimeType: 'application/json',
     },
+    'POST /api/chat/ask': {
+      accepts: {
+        scheme: 'exact',
+        network,
+        payTo,
+        price: '0.03',
+      },
+      description: 'Groq AI Question Answering on Article',
+      mimeType: 'application/json',
+    },
     'POST /api/chat/tip': {
       accepts: {
         scheme: 'exact',

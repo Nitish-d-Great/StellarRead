@@ -9,6 +9,19 @@ const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
   const [refundResult, setRefundResult] = useState(null);
   const [refundError, setRefundError] = useState(null);
 
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+  const toggleTheme = () => {
+    if (isDark) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setIsDark(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setIsDark(true);
+    }
+  };
+
   if (!sessionSummary) {
     return (
       <div className="conf-page">
@@ -52,6 +65,10 @@ const ConfirmationPage = ({ walletAddress, sessionSummary, onNewSession }) => {
 
   return (
     <div className="conf-page">
+      <button className="theme-toggle-btn" onClick={toggleTheme} aria-label="Toggle Dark Mode">
+        {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
+      </button>
+
       <div className="conf-container">
 
         {/* Header */}

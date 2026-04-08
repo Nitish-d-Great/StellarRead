@@ -376,6 +376,87 @@ class StellarX402Service {
     return { txHash, impact: data.impact };
   }
 
+  async payForAsk(title, content, question) {
+    if (!this.isInitialized) throw new Error('Service not initialized');
+    if (!this.agentSecret) throw new Error('SESSION_NOT_FUNDED');
+    if (!this.hasBudget(0.03)) throw new Error('Insufficient Agent Budget. Please restart session.');
+
+    const signer = createEd25519Signer(this.agentSecret, CONFIG.STELLAR_NETWORK_CAIP2);
+    const core = new x402Client().register(
+      'stellar:*',
+      new ExactStellarScheme(signer, CONFIG.STELLAR_RPC_URL ? { url: CONFIG.STELLAR_RPC_URL } : undefined),
+    );
+    const httpClient = new x402HTTPClient(core);
+
+    const payload = { title, content, question };
+
+    // 1) Unpaid request to get PAYMENT-REQUIRED
+    const first = await fetch(`${CONFIG.BACKEND_URL}/api/chat/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (first.status !== 402) {
+      if (!first.ok) throw new Error(`Backend error: ${first.status}`);
+      throw new Error('Expected 402 PAYMENT-REQUIRED, got 200');
+    }
+
+    const paymentRequired = httpClient.getPaymentRequiredResponse(
+      (name) => first.headers.get(name),
+      await first.json().catch(() => ({})),
+    );
+
+    // 2) Build + sign Soroban transfer
+    let paymentPayload;
+    try {
+      paymentPayload = await httpClient.createPaymentPayload(paymentRequired);
+    } catch (e) {
+      throw new Error(`Q&A Payment Error: ${formatX402PaymentBuildError(e)}`);
+    }
+
+    // 3) Retry request with PAYMENT-SIGNATURE
+    const paid = await fetch(`${CONFIG.BACKEND_URL}/api/chat/ask`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...httpClient.encodePaymentSignatureHeader(paymentPayload),
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!paid.ok) {
+      const err = await paid.json().catch(() => ({}));
+      throw new Error(`ASK_PAYMENT_REJECTED: ${err?.error || err?.message || paid.status}`);
+    }
+
+    const settlement = httpClient.getPaymentSettleResponse((name) => paid.headers.get(name));
+    const data = await paid.json();
+
+    const txHash = settlement.transaction;
+
+    const txRecord = {
+      type: 'ask',
+      title: title.slice(0, 30) + '...',
+      network: settlement.network,
+      transaction: txHash,
+      hash: txHash,
+      payer: settlement.payer,
+      timestamp: new Date().toISOString(),
+      status: settlement.success ? 'confirmed' : 'failed',
+      scheme: 'exact',
+      asset: paymentRequired?.accepts?.[0]?.asset,
+      amount: '0.03',
+      explorerUrl: txHash
+        ? `https://stellar.expert/explorer/testnet/tx/${txHash}`
+        : null,
+    };
+    this.transactions.push(txRecord);
+    this.totalSpent += 0.03;
+
+    return { txHash, answer: data.answer };
+  }
+
   async payForTip(title, amount) {
     if (!this.isInitialized) throw new Error('Service not initialized');
     if (!this.agentSecret) throw new Error('SESSION_NOT_FUNDED');

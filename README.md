@@ -2,7 +2,7 @@
 
 **Autonomous AI Agent · Pay-Per-Read News · x402 Micropayments on Stellar**
 
-> An intelligent news-reading platform where an autonomous AI agent manages content acquisition, article summarization and Web3 sector impact analysis — all gated by the x402 HTTP payment protocol and settled on the Stellar network.
+> An intelligent news-reading platform where an autonomous AI agent manages content acquisition, article summarization, Web3 sector impact analysis, and interactive Q&A — all gated by the x402 HTTP payment protocol and settled on the Stellar network.
 
 **🌐 Live Demo:** [stellarread.vercel.app](https://stellarread.vercel.app)  
 **🔗 Backend API:** [stellarread.onrender.com](https://stellarread.onrender.com/health)  
@@ -29,7 +29,7 @@
 
 ## Overview
 
-StellarRead demonstrates how autonomous AI agents can transact independently using the **x402 HTTP payment protocol** on the **Stellar blockchain**. The platform delivers a real-time crypto news feed where every interaction — fetching articles, generating AI summaries and performing sector impact analysis — is metered and settled through micro-USDC payments on Stellar's Soroban smart contracts.
+StellarRead demonstrates how autonomous AI agents can transact independently using the **x402 HTTP payment protocol** on the **Stellar blockchain**. The platform delivers a real-time crypto news feed where every interaction — fetching articles, generating AI summaries, performing sector impact analysis, and answering user questions — is metered and settled through micro-USDC payments on Stellar's Soroban smart contracts.
 
 When a user connects their Freighter wallet and funds a session, the app deploys an **ephemeral agent wallet** that autonomously handles all payments. The user only needs to approve wallet signatures — the agent decides when to pay and how much, based on reading behavior.
 
@@ -45,14 +45,15 @@ When a user connects their Freighter wallet and funds a session, the app deploys
 
 ### ⚡ x402 Protocol Integration
 - Full HTTP 402 challenge-response flow for every paid resource
-- Three distinct x402-gated endpoints with independent pricing
+- Five distinct x402-gated endpoints with independent pricing
 - Soroban USDC settlement on Stellar Testnet via OpenZeppelin Channels facilitator
 - Payment proof headers (`PAYMENT-REQUIRED`, `PAYMENT-SIGNATURE`, `PAYMENT-RESPONSE`)
 
 ### 🧠 AI-Powered Compute (Groq LLM)
 - **Article Summarization** — Concise 50–80 word summaries via Llama 3.1 8B Instant ($0.05/summary)
 - **Sector Impact Analysis** — Structural and financial impact assessment for the Web3/blockchain sector ($0.02/analysis)
-- Both AI services are individually x402-gated — pay only when you use them
+- **Ask a Question** — Ask any question about an article and get an AI-generated answer based on its content ($0.03/question)
+- All AI services are individually x402-gated — pay only when you use them
 
 ### 📰 Live Crypto News Feed
 - Real-time articles from CryptoCompare, CoinDesk RSS, or Financial Modeling Prep
@@ -77,6 +78,12 @@ When a user connects their Freighter wallet and funds a session, the app deploys
 - Direct USDC transfer from user wallet to agent wallet (no x402 needed for funding)
 - Session budget updates immediately after transfer confirmation
 - Full transaction history records all wallet funding events with Stellar Explorer links
+### 💸 Session Refund
+- Refund unspent USDC from the agent wallet back to your Freighter wallet at session end
+- Click the "Refund" button on the Confirmation page to reclaim remaining funds
+- Auto-signed by the agent key — no Freighter approval needed
+- Transaction hash linked to Stellar Expert for verification
+
 ### 💳 Session Billing & Transparency
 - Real-time session billing dashboard showing articles read, batches purchased, summaries, impacts, tips, and total spend
 - Budget progress bar with automatic exhaustion detection
@@ -126,6 +133,7 @@ This implementation uses **x402 v2 headers** and **Soroban USDC exact payments**
 │  POST /api/articles       → x402-gated news batches       │
 │  POST /api/chat/summarize → x402-gated AI summaries       │
 │  POST /api/chat/impact    → x402-gated impact analysis    │
+│  POST /api/chat/ask       → x402-gated article Q&A        │
 │  GET  /api/articles/free  → free initial batch            │
 │  GET  /health             → server health check           │
 │       │                                                   │
@@ -156,7 +164,7 @@ This implementation uses **x402 v2 headers** and **Soroban USDC exact payments**
 | **Blockchain** | Stellar SDK, Soroban | On-chain USDC payments and smart contract interaction |
 | **Payments** | x402 Protocol (`@x402/stellar`, `@x402/core`) | HTTP-native micropayment protocol |
 | **Backend** | Express.js, Node.js | API server with x402 resource gating |
-| **AI/LLM** | Groq SDK (Llama 3.1 8B Instant) | Article summarization and sector impact analysis |
+| **AI/LLM** | Groq SDK (Llama 3.1 8B Instant) | Article summarization, sector impact analysis, and Q&A |
 | **News Data** | CryptoCompare API, CoinDesk RSS, FMP API | Real-time crypto/Web3 news sourcing |
 | **Facilitator** | OpenZeppelin Channels | x402 payment verification and on-chain settlement |
 | **Hosting** | Vercel (frontend), Render (backend) | Production deployment |
@@ -191,7 +199,7 @@ stellarread/
 │   │   └── AgentLog.jsx / .css        # Live transaction log with status indicators
 │   │
 │   ├── services/
-│   │   ├── stellarX402.js             # x402 payment client (payForBatch, payForSummary, payForImpact)
+│   │   ├── stellarX402.js             # x402 payment client (payForBatch, payForSummary, payForImpact, payForAsk)
 │   │   ├── newsApi.js                 # Frontend news API helpers
 │   │   └── agentBrain.js              # Agent decision logic (interest matching)
 │   │
@@ -211,7 +219,7 @@ stellarread/
     │
     ├── routes/
     │   ├── articles.js                # x402-gated POST /api/articles + free batch endpoint
-    │   ├── chat.js                    # x402-gated POST /api/chat/summarize & /api/chat/impact
+    │   ├── chat.js                    # x402-gated POST /api/chat/summarize, /impact, /ask & /tip
     │   └── facilitator.js             # Facilitator debug/inspection endpoints
     │
     ├── services/
@@ -380,9 +388,11 @@ All prices are denominated in **USDC** and settled on **Stellar Testnet** via So
 | Article Batch | $0.10 | `POST /api/articles` | 10 crypto news articles per batch |
 | AI Summary | $0.05 | `POST /api/chat/summarize` | 50–80 word article summary via Groq |
 | Impact Analysis | $0.02 | `POST /api/chat/impact` | 40–50 word Web3 sector impact assessment |
+| Ask a Question | $0.03 | `POST /api/chat/ask` | AI-generated answer to a user question about an article |
 | Tip the Author | $0.01 | `POST /api/chat/tip` | Direct micropayment to article author (fixed amount) |
 | Share Article | Free | N/A | Copy original article link to clipboard |
 | Add Funds | Free* | (Direct transfer) | Top-up agent wallet mid-session (only Stellar network fee) |
+| Refund | Free* | (Direct transfer) | Refund unspent USDC from agent wallet back to user wallet |
 
 *Network transaction fee applies (typically <$0.01 XLM equivalent)
 
@@ -403,10 +413,11 @@ All prices are denominated in **USDC** and settled on **Stellar Testnet** via So
 3. **Fund Agent** — Approve a one-time USDC transfer to the ephemeral agent wallet via Freighter
 4. **Read Articles** — Browse the initial free batch of crypto news
 5. **Auto Top-Up** — When ≥80% of articles are read, the agent autonomously triggers a paid x402 request for the next batch
-6. **AI Features** — Click any article to summarize it or analyze its sector impact (each is an independent x402 payment)
+6. **AI Features** — Click any article to summarize it, analyze its sector impact, or ask a question about it (each is an independent x402 payment)
 7. **Share Articles** — Click "Share Article" in the article modal to copy the original source link to your clipboard
 8. **Extend Session** — Click "Add Funds" in the Billing Counter to top up your budget mid-session without restarting
-9. **End Session** — View the complete session summary with all transactions and Stellar Explorer links
+9. **Refund** — On the confirmation page, refund any unspent USDC back to your Freighter wallet
+10. **End Session** — View the complete session summary with all transactions and Stellar Explorer links
 
 ---
 
