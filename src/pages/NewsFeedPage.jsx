@@ -32,6 +32,7 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
   const [isImpacting, setIsImpacting] = useState(false);
 
   const [isTipping, setIsTipping] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundAmount, setRefundAmount] = useState('0.10');
@@ -597,6 +598,19 @@ const NewsFeedPage = ({ walletAddress, sessionBudget, userInterests, onSessionEn
                 ) : (
                   <>💰 Tip The Author (0.01 USDC)</>
                 )}
+              </button>
+              <button
+                className="summarize-btn share-btn"
+                onClick={() => {
+                  const url = selectedArticle.url || window.location.href;
+                  navigator.clipboard.writeText(url).then(() => {
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2000);
+                  });
+                }}
+                style={{ marginTop: '0.75rem', backgroundImage: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}
+              >
+                {linkCopied ? '✓ Link Copied!' : '🔗 Share Article'}
               </button>
               <div className="modal-paid-badge">
                 ✓ Unlocked via x402 · Wallet-approved signature · Settled on Stellar

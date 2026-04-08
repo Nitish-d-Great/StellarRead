@@ -65,6 +65,18 @@ When a user connects their Freighter wallet and funds a session, the app deploys
 - All tips are x402-gated and settled on Stellar via Soroban
 - Transparent transaction history showing tip recipients and amounts
 
+### 🔗 Share Article
+- One-click sharing of any article you're reading
+- Click the "Share Article" button in the article modal to copy the original article link to your clipboard
+- Displays a brief "Link Copied!" confirmation message
+- No x402 payment required — sharing is free
+
+### ➕ Add Funds (Session Top-Ups)
+- Extend your reading session mid-way without restarting
+- Click the "Add Funds" button in the Billing Counter to top up your agent wallet
+- Direct USDC transfer from user wallet to agent wallet (no x402 needed for funding)
+- Session budget updates immediately after transfer confirmation
+- Full transaction history records all wallet funding events with Stellar Explorer links
 ### 💳 Session Billing & Transparency
 - Real-time session billing dashboard showing articles read, batches purchased, summaries, impacts, tips, and total spend
 - Budget progress bar with automatic exhaustion detection
@@ -367,7 +379,13 @@ All prices are denominated in **USDC** and settled on **Stellar Testnet** via So
 |:--------|:------|:--------------|:------------|
 | Article Batch | $0.10 | `POST /api/articles` | 10 crypto news articles per batch |
 | AI Summary | $0.05 | `POST /api/chat/summarize` | 50–80 word article summary via Groq |
-| Impact Analysis | $0.02 | `POST /api/chat/impact` | 40–50 word Web3 sector impact assessment || Tip the Author | $0.01 | `POST /api/chat/tip` | Direct micropayment to article author (fixed amount) |
+| Impact Analysis | $0.02 | `POST /api/chat/impact` | 40–50 word Web3 sector impact assessment |
+| Tip the Author | $0.01 | `POST /api/chat/tip` | Direct micropayment to article author (fixed amount) |
+| Share Article | Free | N/A | Copy original article link to clipboard |
+| Add Funds | Free* | (Direct transfer) | Top-up agent wallet mid-session (only Stellar network fee) |
+
+*Network transaction fee applies (typically <$0.01 XLM equivalent)
+
 ### Session Budget Options
 
 | Budget | Approximate Capacity |
@@ -386,7 +404,9 @@ All prices are denominated in **USDC** and settled on **Stellar Testnet** via So
 4. **Read Articles** — Browse the initial free batch of crypto news
 5. **Auto Top-Up** — When ≥80% of articles are read, the agent autonomously triggers a paid x402 request for the next batch
 6. **AI Features** — Click any article to summarize it or analyze its sector impact (each is an independent x402 payment)
-7. **End Session** — View the complete session summary with all transactions and Stellar Explorer links
+7. **Share Articles** — Click "Share Article" in the article modal to copy the original source link to your clipboard
+8. **Extend Session** — Click "Add Funds" in the Billing Counter to top up your budget mid-session without restarting
+9. **End Session** — View the complete session summary with all transactions and Stellar Explorer links
 
 ---
 
