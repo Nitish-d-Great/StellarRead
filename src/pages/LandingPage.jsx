@@ -234,15 +234,12 @@ const LandingPage = ({ onSessionStart, walletAddress }) => {
           </div>
 
           <h1 className="hero-title">
-            Read News.<br />
-            <span className="hero-accent">Agent Auto-Requests via x402.</span>
+            Read Uninterrupted<br />
+            <span className="hero-accent">Your Agent Pays via x402</span>
           </h1>
 
           <p className="hero-sub">
-            Your autonomous AI agent evaluates reading progress and triggers x402 payment requests on
-            <strong> Stellar</strong>. You approve each wallet signature in
-            <strong> Freighter</strong>.
-          </p>
+            AI agent silently rides every scroll of yours - the instant you crave more, get ready for more - all via <strong> Stellar</strong>. Summarise, Analyse, Tip, Share, Bookmark, Ask AI. <strong>Do More Than Just Reading.</strong></p>
 
           <div className="how-it-works">
             <div className="hiw-step">
